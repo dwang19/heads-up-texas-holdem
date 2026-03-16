@@ -14,6 +14,7 @@ interface PlayerAreaProps {
   onHandLeave?: () => void;
   usedHoleCardIndices?: number[];
   isHovered?: boolean;
+  currentBet?: number;
 }
 
 const PlayerArea: React.FC<PlayerAreaProps> = ({
@@ -26,12 +27,13 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
   onHandHover,
   onHandLeave,
   usedHoleCardIndices = [],
-  isHovered = false
+  isHovered = false,
+  currentBet = 0
 }) => {
   const getPositionIndicators = () => {
-    const indicators = [];
-    if (player.isSmallBlind) indicators.push('Small Blind');
-    if (player.isBigBlind) indicators.push('Big Blind');
+    const indicators: Array<{ full: string; short: string }> = [];
+    if (player.isSmallBlind) indicators.push({ full: 'Small Blind', short: 'SB' });
+    if (player.isBigBlind) indicators.push({ full: 'Big Blind', short: 'BB' });
     return indicators;
   };
 
@@ -56,7 +58,10 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
           {positionIndicators.length > 0 && (
             <div className="position-indicators">
               {positionIndicators.map(indicator => (
-                <span key={indicator} className="position-badge">{indicator}</span>
+                <span key={indicator.short} className="position-badge">
+                  <span className="badge-full">{indicator.full}</span>
+                  <span className="badge-short">{indicator.short}</span>
+                </span>
               ))}
             </div>
           )}
@@ -68,6 +73,9 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
           <div className="chip-icon">💰</div>
           <span className="chip-amount">${player.chips.toLocaleString()}</span>
         </div>
+        {currentBet > 0 && (
+          <div className="bet-badge">Bet: ${currentBet}</div>
+        )}
       </div>
 
       <div 

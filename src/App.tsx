@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import Card from './components/Card';
 import PlayerArea from './components/PlayerArea';
-import BetChip from './components/BetChip';
 import { Deck, createDeck } from './game/deck';
 import { Card as CardType, Player, GameState, PokerHand } from './game/types';
 import { getAIDecision, AIPersonality } from './game/ai';
@@ -62,6 +61,8 @@ function App() {
   const [communityCards, setCommunityCards] = useState<CardType[]>([]);
   const [burnedCards, setBurnedCards] = useState<CardType[]>([]);
   const [pot, setPot] = useState<number>(0);
+  const [potDelta, setPotDelta] = useState<number | null>(null);
+  const prevPotRef = useRef<number>(0);
   const [currentBet, setCurrentBet] = useState<number>(0);
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState<number>(-1);
   const [gamePhase, setGamePhase] = useState<'waiting' | 'preflop' | 'flop' | 'turn' | 'river' | 'showdown'>('waiting');
@@ -114,13 +115,24 @@ function App() {
     }
   }, [gameLog]);
 
+  // Track pot changes and show "+$X" delta animation
+  useEffect(() => {
+    if (pot > prevPotRef.current) {
+      setPotDelta(pot - prevPotRef.current);
+      const timer = setTimeout(() => setPotDelta(null), 1800);
+      prevPotRef.current = pot;
+      return () => clearTimeout(timer);
+    }
+    prevPotRef.current = pot;
+  }, [pot]);
+
   const lastOuterRef = useRef({ w: window.outerWidth, h: window.outerHeight });
 
   const applyScale = useCallback(() => {
     const el = scalerRef.current;
     if (!el) return;
-    // On mobile, let responsive CSS handle the layout instead of zoom scaling
-    if (window.innerWidth <= 768) {
+    // On mobile (portrait or landscape), let responsive CSS handle the layout instead of zoom scaling
+    if (window.innerWidth <= 899 || (window.innerHeight <= 500 && window.innerWidth <= 900)) {
       el.style.removeProperty('zoom');
       return;
     }
@@ -1646,21 +1658,20 @@ function App() {
                   const aiHandData = showdownData?.hands.find(h => !h.player.isHuman);
                   const aiUsedHoleCardIndices = getUsedHoleCardIndices(aiHandData?.pokerHand, player.cards);
                   return (
-                    <div key={player.id} className="player-with-bet">
-                      <PlayerArea
-                        player={player}
-                        isCurrentPlayer={playerIndex === currentPlayerIndex}
-                        gamePhase={gamePhase}
-                        holeCardAnimating={holeCardAnimating}
-                        aiCardsFlipping={aiCardsFlipping}
-                        isShowdown={gamePhase === 'showdown'}
-                        onHandHover={() => setHoveredPlayerHand('ai')}
-                        onHandLeave={() => setHoveredPlayerHand(null)}
-                        usedHoleCardIndices={aiUsedHoleCardIndices}
-                        isHovered={hoveredPlayerHand === 'ai'}
-                      />
-                      <BetChip amount={player.currentBet} />
-                    </div>
+                    <PlayerArea
+                      key={player.id}
+                      player={player}
+                      isCurrentPlayer={playerIndex === currentPlayerIndex}
+                      gamePhase={gamePhase}
+                      holeCardAnimating={holeCardAnimating}
+                      aiCardsFlipping={aiCardsFlipping}
+                      isShowdown={gamePhase === 'showdown'}
+                      onHandHover={() => setHoveredPlayerHand('ai')}
+                      onHandLeave={() => setHoveredPlayerHand(null)}
+                      usedHoleCardIndices={aiUsedHoleCardIndices}
+                      isHovered={hoveredPlayerHand === 'ai'}
+                      currentBet={player.currentBet}
+                    />
                   );
                 })}
               </div>
@@ -1694,12 +1705,16 @@ function App() {
             {/* Cards Row: Pot, Community Cards, Deck, and Burn Cards - All Same Height */}
             <div className="cards-row-container">
               {/* Mobile Pot Indicator - inline with community cards on mobile */}
-              <div className="mobile-pot-indicator">Pot: ${pot}</div>
+              <div className="mobile-pot-indicator">
+                Pot: ${pot}
+                {potDelta && <span className="pot-delta">+${potDelta}</span>}
+              </div>
 
               {/* Pot Display - Left of Community Cards */}
               <div className="pot-display">
                 <h3>Betting Pot</h3>
                 <div className="pot-amount">${pot}</div>
+                {potDelta && <div className="pot-delta">+${potDelta}</div>}
               </div>
 
               {/* Community Cards */}
@@ -1797,20 +1812,19 @@ function App() {
                 const humanHandData = showdownData?.hands.find(h => h.player.isHuman);
                 const humanUsedHoleCardIndices = getUsedHoleCardIndices(humanHandData?.pokerHand, player.cards);
                 return (
-                  <div key={player.id} className="player-with-bet">
-                    <BetChip amount={player.currentBet} />
-                    <PlayerArea
-                      player={player}
-                      isCurrentPlayer={playerIndex === currentPlayerIndex}
-                      gamePhase={gamePhase}
-                      holeCardAnimating={holeCardAnimating}
-                      isShowdown={gamePhase === 'showdown'}
-                      onHandHover={() => setHoveredPlayerHand('human')}
-                      onHandLeave={() => setHoveredPlayerHand(null)}
-                      usedHoleCardIndices={humanUsedHoleCardIndices}
-                      isHovered={hoveredPlayerHand === 'human'}
-                    />
-                  </div>
+                  <PlayerArea
+                    key={player.id}
+                    player={player}
+                    isCurrentPlayer={playerIndex === currentPlayerIndex}
+                    gamePhase={gamePhase}
+                    holeCardAnimating={holeCardAnimating}
+                    isShowdown={gamePhase === 'showdown'}
+                    onHandHover={() => setHoveredPlayerHand('human')}
+                    onHandLeave={() => setHoveredPlayerHand(null)}
+                    usedHoleCardIndices={humanUsedHoleCardIndices}
+                    isHovered={hoveredPlayerHand === 'human'}
+                    currentBet={player.currentBet}
+                  />
                 );
               })}
             </div>
