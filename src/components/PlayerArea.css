@@ -179,6 +179,24 @@
   align-items: center;
 }
 
+.bet-badge {
+  background: rgba(255, 165, 0, 0.2);
+  border: 1px solid rgba(255, 165, 0, 0.5);
+  color: #ffa726;
+  font-size: 12px;
+  font-weight: bold;
+  padding: 3px 10px;
+  border-radius: 12px;
+  text-align: center;
+  white-space: nowrap;
+  animation: betBadgeAppear 0.3s ease-out;
+}
+
+@keyframes betBadgeAppear {
+  0% { opacity: 0; transform: scale(0.8); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
 .chip-stack {
   display: flex;
   align-items: center;
@@ -295,6 +313,11 @@
     gap: 4px;
   }
 
+  .bet-badge {
+    font-size: 11px;
+    padding: 2px 8px;
+  }
+
   .chip-stack {
     padding: 4px 8px;
     min-width: 60px;
@@ -350,6 +373,11 @@
   .player-area {
     padding: 6px 8px;
     gap: 6px;
+  }
+
+  .bet-badge {
+    font-size: 10px;
+    padding: 2px 6px;
   }
 
   .player-name {
@@ -415,6 +443,11 @@
   .player-chips {
     margin-bottom: 0;
     gap: 2px;
+  }
+
+  .bet-badge {
+    font-size: 9px;
+    padding: 1px 5px;
   }
 
   .chip-stack {
