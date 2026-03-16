@@ -1,0 +1,10 @@
+fix the shifting of gameboard boxes, we need to have a smooth and consistent gameplay experience
+	this is related, but gamelog height is out of whack again, needs to be flush with other things on that top row, it's part of the reason why things shift around
+
+think of a way to have a middle pot for the phase before it gets added to the total betting pot,  that way we can get rid of "Last" and "Bet" in the player cards once we get a way to visualize the phase-specific bets 
+
+update the computer A.I. strats to be more sophisticated 
+
+maybe update the header text again, either more shadow, or underline, or format the text size for font
+
+maybe update the color scheme, so showdown is green v blue right now, maybe make it green v purple or something, and then make the AI player card and user player card light shades of green/purple, and the "Turn" indicator border should be green/purple also, maybe the "AI Player" and "Player1" text should be dark green and dark purple?
