@@ -455,7 +455,7 @@
 }
 
 /* Responsive adjustments — compact cards for single-screen mobile layout */
-@media (max-width: 768px) {
+@media (max-width: 899px) {
   :root {
     --card-large-w: 70px;
     --card-large-h: 98px;

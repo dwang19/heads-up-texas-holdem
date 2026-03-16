@@ -250,7 +250,7 @@
 }
 
 /* Responsive adjustments — Horizontal inline layout for mobile */
-@media (max-width: 768px) {
+@media (max-width: 899px) {
   .player-area {
     min-width: unset;
     max-width: 100%;

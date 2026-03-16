@@ -725,149 +725,9 @@
 }
 
 /* ============================================
-   ALMOST MOBILE (769px – 899px)
-   Tier 2: hide sidebars, show mobile info bar, simplified cards row
-   Minimizes the visual jump at the 768px mobile breakpoint
+   TABLET / MOBILE (≤899px) — Single-Screen Layout
    ============================================ */
-@media (max-width: 899px) and (min-width: 769px) {
-  :root {
-    --pot-width: 150px;
-    --pot-height: 150px;
-    --community-cards-min-width: 350px;
-    --community-cards-height: 160px;
-    --font-size-pot: 28px;
-    --font-size-section-heading: 14px;
-    --card-large-w: 70px;
-    --card-large-h: 98px;
-    --card-large-font: 14px;
-    --card-medium-w: 56px;
-    --card-medium-h: 78px;
-    --card-medium-font: 12px;
-  }
-
-  /* Hide desktop sidebars — show mobile equivalents */
-  .game-info-box {
-    display: none !important;
-  }
-
-  .center-section .game-log-box.top-row-log {
-    display: none;
-  }
-
-  /* Show game log as floating overlay when toggled */
-  .center-section .game-log-box.top-row-log.mobile-visible {
-    display: flex;
-    position: fixed;
-    top: 40px;
-    right: 8px;
-    width: 280px;
-    max-height: 300px;
-    z-index: 999;
-    background: rgba(0, 0, 0, 0.92);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 10px;
-    padding: 8px;
-  }
-
-  .mobile-info-bar {
-    display: flex;
-    grid-area: mobile-info;
-  }
-
-  .mobile-log-toggle {
-    display: block;
-    grid-area: none;
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    z-index: 100;
-  }
-
-  /* Single-column grid — same areas as mobile but player areas stay vertical */
-  .center-section {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto;
-    grid-template-areas:
-      "mobile-info"
-      "top-row"
-      "cards-row"
-      "human-player"
-      "actions";
-    gap: 4px;
-    position: relative;
-  }
-
-  .top-row-container {
-    grid-template-columns: 1fr;
-  }
-
-  .top-row-container .ai-player-section {
-    max-width: 100%;
-    min-width: unset;
-    width: 100%;
-    height: auto;
-    max-height: none;
-  }
-
-  /* Reset human player grid-column for single-column layout */
-  .center-section .human-player-section {
-    grid-column: auto;
-    margin-top: 0;
-  }
-
-  /* Simplified cards row: pot + community cards only (no deck, no burn) */
-  .burned-cards {
-    display: none;
-  }
-
-  .deck-visual {
-    display: none;
-  }
-
-  .cards-row-container {
-    grid-template-columns: var(--pot-width) minmax(var(--community-cards-min-width), 1fr);
-    grid-template-areas: "pot community-cards";
-    height: var(--community-cards-height);
-    min-height: var(--community-cards-height);
-  }
-
-  /* Compact action buttons */
-  .center-section .action-buttons-section h3 {
-    display: none;
-  }
-
-  .betting-controls {
-    flex-direction: row !important;
-    flex-wrap: nowrap;
-    gap: 6px;
-  }
-
-  .bet-button {
-    min-height: 40px;
-    padding: 8px 10px;
-    font-size: 13px;
-    flex: 1;
-  }
-
-  .raise-section {
-    flex-direction: row !important;
-    flex-wrap: nowrap;
-    gap: 4px;
-    flex: 2;
-    width: auto;
-    align-items: center;
-  }
-
-  .raise-input {
-    width: 40px;
-    font-size: 13px;
-  }
-}
-
-/* ============================================
-   TABLET / MOBILE (≤768px) — Single-Screen Layout
-   ============================================ */
-@media (max-width: 768px) {
+@media (max-width: 899px) {
   :root {
     --font-size-pot: 20px;
     --font-size-section-heading: 14px;
@@ -1076,7 +936,7 @@
     letter-spacing: 1px;
   }
 
-  /* === STEP 8: Status slot — overrides are in the second 768px block
+  /* === STEP 8: Status slot — overrides are in the second 899px block
      (after desktop rules) for correct cascade ordering === */
 
   /* === Mobile-only elements (hidden on desktop by default — see below) === */
@@ -2899,7 +2759,7 @@ html, body {
 }
 
 /* Responsive adjustments for showdown */
-@media (max-width: 768px) {
+@media (max-width: 899px) {
   .showdown-hands {
     flex-direction: column;
     gap: var(--gap-large);

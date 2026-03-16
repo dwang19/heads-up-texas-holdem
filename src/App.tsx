@@ -132,7 +132,7 @@ function App() {
     const el = scalerRef.current;
     if (!el) return;
     // On mobile (portrait or landscape), let responsive CSS handle the layout instead of zoom scaling
-    if (window.innerWidth <= 768 || (window.innerHeight <= 500 && window.innerWidth <= 900)) {
+    if (window.innerWidth <= 899 || (window.innerHeight <= 500 && window.innerWidth <= 900)) {
       el.style.removeProperty('zoom');
       return;
     }
