@@ -227,41 +227,142 @@
   flex-wrap: wrap;
 }
 
-/* Responsive adjustments */
+/* Responsive adjustments — Horizontal inline layout for mobile */
 @media (max-width: 768px) {
   .player-area {
-    min-width: 250px;
-    max-width: 300px;
-    padding: 15px;
+    min-width: unset;
+    max-width: 100%;
+    width: 100%;
+    padding: 8px 12px;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Disable translateY on current player — saves vertical space */
+  .player-area.current-player {
+    transform: none;
+  }
+
+  .player-header {
+    margin-bottom: 0;
+    flex-shrink: 0;
+    min-width: 0;
+  }
+
+  .player-name-section {
+    flex-direction: row;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 0;
   }
 
   .player-name {
-    font-size: 16px;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 80px;
+  }
+
+  .folded-text {
+    font-size: 11px;
+  }
+
+  .position-indicators {
+    gap: 3px;
+  }
+
+  .position-badge {
+    font-size: 7px;
+    padding: 2px 5px;
+    border-radius: 5px;
+  }
+
+  .player-chips {
+    margin-bottom: 0;
+    flex-shrink: 0;
+    gap: 4px;
   }
 
   .chip-stack {
-    padding: 6px 12px;
-    min-width: 100px;
+    padding: 4px 8px;
+    min-width: 60px;
+    gap: 4px;
   }
 
   .chip-amount {
-    font-size: 16px;
+    font-size: 13px;
+  }
+
+  .chip-icon {
+    font-size: 13px;
+  }
+
+  .player-cards {
+    min-height: unset;
+    flex-shrink: 0;
+    flex-grow: 1;
+    justify-content: flex-end;
+  }
+
+  .player-cards.showdown-cards {
+    padding: 4px;
+    margin: -4px;
+  }
+
+  .cards-row {
+    gap: 4px;
+    flex-wrap: nowrap;
+  }
+
+  .turn-indicator {
+    display: none;
+  }
+
+  .action-indicator {
+    top: -10px;
+    right: 8px;
+    padding: 2px 6px;
+    font-size: 8px;
+  }
+
+  .action-icon {
+    font-size: 10px;
+  }
+
+  .current-indicator {
+    font-size: 11px;
   }
 }
 
 @media (max-width: 480px) {
   .player-area {
-    min-width: 220px;
-    max-width: 280px;
+    padding: 6px 8px;
+    gap: 6px;
   }
 
-  .player-name-section {
-    flex-direction: column;
-    gap: 5px;
-    align-items: flex-start;
+  .player-name {
+    font-size: 12px;
+    max-width: 60px;
   }
 
-  .position-indicators {
-    align-self: flex-end;
+  .chip-stack {
+    padding: 3px 6px;
+    min-width: 50px;
+  }
+
+  .chip-amount {
+    font-size: 12px;
+  }
+
+  .chip-icon {
+    font-size: 12px;
+  }
+
+  .cards-row {
+    gap: 3px;
   }
 }

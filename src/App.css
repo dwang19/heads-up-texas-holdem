@@ -28,6 +28,24 @@
   /* Bottom Section */
   --action-buttons-min-width: 300px;
   --action-buttons-max-width: 500px;
+
+  /* Responsive Card Sizes (overridden in media queries) */
+  --card-large-w: 100px;
+  --card-large-h: 140px;
+  --card-large-font: 20px;
+  --card-medium-w: 80px;
+  --card-medium-h: 112px;
+  --card-medium-font: 16px;
+  --card-small-w: 60px;
+  --card-small-h: 84px;
+  --card-small-font: 12px;
+
+  /* Responsive Typography */
+  --font-size-pot: 48px;
+  --font-size-section-heading: 18px;
+
+  /* Touch Target Minimum */
+  --button-min-height: 44px;
 }
 
 .App {
@@ -440,7 +458,7 @@
 }
 
 .pot-amount {
-  font-size: 48px;
+  font-size: var(--font-size-pot);
   font-weight: bold;
   color: #ffd700;
   text-shadow: 0 2px 8px rgba(255, 215, 0, 0.5);
@@ -656,63 +674,208 @@
   flex-wrap: wrap;
 }
 
+/* Mobile-only elements: hidden on desktop */
+.mobile-info-bar,
+.mobile-pot-indicator,
+.mobile-log-toggle {
+  display: none;
+}
+
+/* ============================================
+   TABLET / MOBILE (≤768px) — Single-Screen Layout
+   ============================================ */
 @media (max-width: 768px) {
-  .game-container {
-    padding: var(--gap-small);
-    gap: var(--gap-medium);
+  :root {
+    --font-size-pot: 20px;
+    --font-size-section-heading: 14px;
+    /* Card size tokens are defined in Card.css */
   }
-  
+
+  /* === STEP 1: Hide non-essential sections, restructure grid === */
+
+  /* Hide header on mobile */
+  .App-header {
+    display: none;
+  }
+
+  /* Hide game-info-box (replaced by mobile-info-bar) */
+  .game-info-box {
+    display: none !important;
+  }
+
+  /* Hide game log (replaced by toggle overlay) */
+  .center-section .game-log-box.top-row-log {
+    display: none;
+  }
+
+  /* Show game log as floating overlay when toggled */
+  .center-section .game-log-box.top-row-log.mobile-visible {
+    display: flex;
+    position: fixed;
+    top: 40px;
+    right: 8px;
+    width: 280px;
+    max-height: 300px;
+    z-index: 999;
+    background: rgba(0, 0, 0, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    padding: 8px;
+    max-width: 100%;
+    min-width: unset;
+    height: auto;
+  }
+
+  /* Prevent scrolling — everything fits on one screen */
+  .App {
+    overflow: hidden;
+  }
+
+  .game-container {
+    padding: 4px;
+    gap: 2px;
+  }
+
   .main-game-layout {
     flex-direction: column;
+    gap: 4px;
   }
-  
+
+  /* Restructured grid: only essential gameplay sections */
   .center-section {
     grid-template-columns: 1fr;
-    grid-template-areas: 
-      "game-info"
+    grid-template-rows: auto;
+    grid-template-areas:
+      "mobile-info"
       "top-row"
-      "game-log"
       "cards-row"
-      "human-player";
+      "human-player"
+      "actions";
+    gap: 4px;
   }
-  
+
   .top-row-container {
     grid-template-columns: 1fr;
   }
-  
-  .top-row-container .game-info-box,
-  .top-row-container .ai-player-section,
-  .center-section .game-log-box.top-row-log {
+
+  .top-row-container .ai-player-section {
     max-width: 100%;
     min-width: unset;
     width: 100%;
     height: auto;
-    max-height: 200px;
+    max-height: none;
   }
-  
+
+  /* === STEP 2: Horizontal action buttons === */
+
+  .center-section .action-buttons-section {
+    margin-top: 0;
+    padding: 6px 8px;
+    backdrop-filter: blur(5px);
+  }
+
+  .center-section .action-buttons-section h3 {
+    display: none;
+  }
+
+  .betting-controls {
+    flex-direction: row !important;
+    flex-wrap: nowrap;
+    gap: 6px;
+    margin: 0;
+    width: 100%;
+    align-items: center;
+  }
+
+  .bet-button {
+    min-height: 40px;
+    min-width: unset;
+    padding: 8px 10px;
+    font-size: 13px;
+    flex: 1;
+    border-radius: 10px;
+  }
+
+  .raise-section {
+    flex-direction: row !important;
+    flex-wrap: nowrap;
+    gap: 4px;
+    flex: 2;
+    width: auto;
+    align-items: center;
+  }
+
+  .raise-input-wrapper {
+    width: auto;
+    flex-shrink: 1;
+  }
+
+  .raise-input {
+    width: 40px;
+    font-size: 13px;
+    padding: 6px 6px 6px 16px;
+  }
+
+  .raise-controls {
+    display: flex !important;
+  }
+
+  /* === STEP 3: Compact community cards + pot === */
+
   .cards-row-container {
     grid-template-columns: 1fr;
-    grid-template-areas: 
-      "pot"
-      "community-cards"
-      "deck"
-      "burned-cards";
+    grid-template-areas:
+      "mobile-pot"
+      "community-cards";
+    height: auto;
+    min-height: auto;
   }
-  
-  .cards-row-container .pot-display,
-  .cards-row-container .community-cards,
+
+  /* Hide separate pot display (replaced by inline mobile-pot-indicator) */
+  .cards-row-container .pot-display {
+    display: none;
+  }
+
+  .cards-row-container .community-cards {
+    max-width: 100%;
+    min-width: unset !important;
+    width: 100%;
+    height: auto;
+    min-height: auto;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+    padding: 4px !important;
+    border-radius: 8px;
+  }
+
+  .community-cards h3 {
+    display: none;
+  }
+
+  /* Hide deck and burned cards on mobile */
   .cards-row-container .deck-visual,
   .cards-row-container .burned-cards {
-    max-width: 100%;
-    min-width: unset;
-    width: 100%;
+    display: none;
   }
-  
+
+  .community-cards .cards-row {
+    min-height: var(--card-medium-h, 70px);
+    gap: 4px;
+    padding: 0;
+  }
+
+  /* Human player section compact */
+  .center-section .human-player-section {
+    grid-column: 1;
+    margin-top: 0;
+  }
+
   .bottom-actions-section {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .bottom-actions-section .action-buttons-section,
   .bottom-actions-section .game-log-box,
   .bottom-actions-section .human-player-section {
@@ -720,10 +883,268 @@
     min-width: unset;
     width: 100%;
   }
-  
-  .center-section .human-player-section {
-    grid-column: 1;
+
+  /* Section headings */
+  .game-info-box h3,
+  .game-log-box h3,
+  .deck-visual h3,
+  .burned-cards h3 {
+    font-size: var(--font-size-section-heading);
+    letter-spacing: 1px;
   }
+
+  /* === STEP 8: Status slot — overrides are in the second 768px block
+     (after desktop rules) for correct cascade ordering === */
+
+  /* === Mobile-only elements (hidden on desktop by default — see below) === */
+  .mobile-info-bar {
+    display: flex;
+    grid-area: mobile-info;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 12px;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+  }
+
+  .mobile-phase {
+    color: #ffa726;
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 12px;
+  }
+
+  .mobile-pot-indicator {
+    display: block;
+    grid-area: mobile-pot;
+    text-align: center;
+    color: #ffd700;
+    font-size: 16px;
+    font-weight: bold;
+    padding: 2px 0;
+    text-shadow: 0 1px 4px rgba(255, 215, 0, 0.5);
+  }
+
+  .mobile-log-toggle {
+    display: block;
+    position: fixed;
+    top: 8px;
+    right: 8px;
+    z-index: 1000;
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+  }
+
+  .mobile-log-toggle:active {
+    background: rgba(255, 255, 255, 0.3);
+  }
+
+  /* === Init screen compact on mobile === */
+  .game-init-overlay {
+    align-items: flex-start;
+    padding: 8px 0;
+    overflow-y: auto;
+  }
+
+  .game-init-screen {
+    padding: 16px;
+    max-width: 100%;
+    width: 92%;
+    border-radius: 14px;
+  }
+
+  .game-init-screen h2 {
+    font-size: 18px;
+    margin-bottom: 10px;
+  }
+
+  .init-form {
+    gap: 10px;
+  }
+
+  .init-form input[type="text"] {
+    padding: 8px 10px;
+    font-size: 14px;
+  }
+
+  .form-group label {
+    margin-bottom: 4px;
+    font-size: 13px;
+  }
+
+  .dealer-choice {
+    gap: 6px;
+  }
+
+  .dealer-choice label {
+    padding: 6px 8px;
+    font-size: 13px;
+    border-radius: 8px;
+  }
+
+  .game-rules {
+    padding: 10px 14px;
+    margin: 0;
+  }
+
+  .game-rules h3 {
+    font-size: 15px;
+    margin-bottom: 6px;
+  }
+
+  .game-rules ul {
+    font-size: 14px;
+    margin: 0;
+    padding-left: 18px;
+  }
+
+  .game-rules li {
+    margin-bottom: 2px;
+  }
+
+  .start-game-button {
+    padding: 10px 24px;
+    font-size: 15px;
+  }
+
+  /* === Gameboard fills viewport height on mobile === */
+  .viewport-scaler {
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .game-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .main-game-layout {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .center-section {
+    flex: 1;
+    align-content: center;
+    min-height: 0;
+  }
+}
+
+/* ============================================
+   PHONE PORTRAIT (≤480px)
+   ============================================ */
+@media (max-width: 480px) {
+  :root {
+    --font-size-pot: 16px;
+    --font-size-section-heading: 12px;
+    --gap-medium: 10px;
+    --gap-large: 12px;
+    /* Card size tokens are defined in Card.css */
+  }
+
+  /* Reduce backdrop-filter blur for performance on low-end devices */
+  .player-area {
+    backdrop-filter: blur(5px);
+  }
+
+  /* Keep action buttons horizontal on phone (override any stacking) */
+  .betting-controls {
+    flex-direction: row !important;
+    gap: 4px;
+  }
+
+  .bet-button {
+    padding: 6px 6px;
+    font-size: 12px;
+    min-height: 36px;
+  }
+
+  .raise-input {
+    width: 32px;
+    font-size: 12px;
+    padding: 4px 4px 4px 14px;
+  }
+
+  /* Community cards flex-shrink so 5 cards fit on small screens */
+  .community-cards .cards-row {
+    gap: 3px;
+    padding: 0;
+  }
+
+  .community-cards .cards-row .card {
+    flex-shrink: 1;
+  }
+
+  .mobile-pot-indicator {
+    font-size: 14px;
+  }
+
+  .mobile-info-bar {
+    font-size: 10px;
+    padding: 3px 8px;
+  }
+
+  /* Showdown compact */
+  .showdown-winner-info .winner-name {
+    font-size: 14px;
+  }
+
+  .showdown-winner-info .winner-amount {
+    font-size: 16px;
+  }
+
+  .showdown-comparison {
+    padding: 4px 8px;
+  }
+
+  .showdown-comparison .comparison-text {
+    font-size: 12px;
+  }
+
+  /* Game init screen compact */
+  .game-init-screen {
+    padding: 20px;
+  }
+
+  .game-init-screen h2 {
+    font-size: 20px;
+    margin-bottom: 16px;
+  }
+
+  /* Phase indicator compact */
+  .phase-indicator {
+    padding: var(--gap-medium);
+    margin: 10px 0;
+  }
+
+  .phase-name {
+    font-size: 20px;
+  }
+
+  .phase-description {
+    font-size: 13px;
+  }
+}
+
+/* ============================================
+   GLOBAL: PREVENT HORIZONTAL SCROLL
+   ============================================ */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 .game-controls {
@@ -2067,5 +2488,23 @@
 
   .vs-text {
     margin: 5px 0;
+  }
+
+  /* Status slot overrides — must come after desktop rules for cascade */
+  .status-slot {
+    height: auto;
+    min-height: 0;
+    margin-top: 2px;
+    flex-shrink: 0;
+  }
+
+  .status-container {
+    padding: 6px 10px;
+    min-height: 32px;
+    border-radius: 8px;
+  }
+
+  .status-container.hidden {
+    display: none;
   }
 }
