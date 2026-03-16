@@ -1100,22 +1100,30 @@
   }
 
   .mobile-pot-indicator {
-    display: block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     grid-area: mobile-pot;
-    text-align: center;
+    justify-self: center;
     color: #ffd700;
-    font-size: 16px;
+    font-size: 18px;
     font-weight: bold;
-    padding: 2px 0;
+    padding: 6px 20px;
     text-shadow: 0 1px 4px rgba(255, 215, 0, 0.5);
     position: relative;
+    background: rgba(0, 0, 0, 0.35);
+    border: 2px solid rgba(255, 215, 0, 0.5);
+    border-radius: 25px;
+    box-shadow: 0 2px 12px rgba(255, 215, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(8px);
   }
 
   .mobile-pot-indicator .pot-delta {
     position: relative;
     display: inline;
     font-size: 14px;
-    margin-left: 6px;
+    margin-left: 2px;
     margin-top: 0;
     animation: potDeltaFloat 1.8s ease-out forwards;
   }
@@ -1282,7 +1290,8 @@
   }
 
   .mobile-pot-indicator {
-    font-size: 14px;
+    font-size: 15px;
+    padding: 5px 16px;
   }
 
   .mobile-info-bar {
@@ -1383,22 +1392,30 @@
   }
 
   .mobile-pot-indicator {
-    display: block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
     grid-area: mobile-pot;
-    text-align: center;
+    justify-self: center;
     color: #ffd700;
     font-size: 13px;
     font-weight: bold;
-    padding: 2px 0;
+    padding: 4px 14px;
     text-shadow: 0 1px 4px rgba(255, 215, 0, 0.5);
     position: relative;
+    background: rgba(0, 0, 0, 0.35);
+    border: 2px solid rgba(255, 215, 0, 0.5);
+    border-radius: 20px;
+    box-shadow: 0 2px 12px rgba(255, 215, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(8px);
   }
 
   .mobile-pot-indicator .pot-delta {
     position: relative;
     display: inline;
     font-size: 11px;
-    margin-left: 6px;
+    margin-left: 2px;
     margin-top: 0;
     animation: potDeltaFloat 1.8s ease-out forwards;
   }
