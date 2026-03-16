@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/heads-up-texas-holdem/static/css/main.c893a57e.css",
+    "main.js": "/heads-up-texas-holdem/static/js/main.023731c8.js",
+    "static/js/453.0f8e93d0.chunk.js": "/heads-up-texas-holdem/static/js/453.0f8e93d0.chunk.js",
+    "index.html": "/heads-up-texas-holdem/index.html",
+    "main.c893a57e.css.map": "/heads-up-texas-holdem/static/css/main.c893a57e.css.map",
+    "main.023731c8.js.map": "/heads-up-texas-holdem/static/js/main.023731c8.js.map",
+    "453.0f8e93d0.chunk.js.map": "/heads-up-texas-holdem/static/js/453.0f8e93d0.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.c893a57e.css",
+    "static/js/main.023731c8.js"
+  ]
+}
