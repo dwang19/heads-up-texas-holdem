@@ -90,6 +90,9 @@ function App() {
   const [hoveredPlayerHand, setHoveredPlayerHand] = useState<'human' | 'ai' | null>(null);
   const [showMobileLog, setShowMobileLog] = useState<boolean>(false);
 
+  // Derived display values
+  const phaseDisplayName = gamePhase === 'waiting' ? 'Preflop' : gamePhase.charAt(0).toUpperCase() + gamePhase.slice(1);
+
   // Chip accounting verification function - helps catch bugs early
   // Total chips + pot should always equal $200 (starting chips for 2 players)
   const verifyChipAccounting = (playersToCheck: Player[], potToCheck: number, context: string) => {
@@ -118,9 +121,10 @@ function App() {
     if (!el) return;
     // On mobile, let responsive CSS handle the layout instead of zoom scaling
     if (window.innerWidth <= 768) {
-      el.style.setProperty('zoom', '1');
+      el.style.removeProperty('zoom');
       return;
     }
+    // Reset zoom before measuring natural height
     el.style.setProperty('zoom', '1');
     const naturalHeight = el.scrollHeight;
     const viewportHeight = window.innerHeight;
@@ -1611,7 +1615,7 @@ function App() {
             {/* Mobile Info Bar - compact replacement for game-info-box on mobile */}
             <div className="mobile-info-bar">
               <span>R{roundNumber}</span>
-              <span className="mobile-phase">{gamePhase === 'waiting' ? 'Preflop' : gamePhase.charAt(0).toUpperCase() + gamePhase.slice(1)}</span>
+              <span className="mobile-phase">{phaseDisplayName}</span>
               <span>Bet: ${currentBet}</span>
             </div>
 
@@ -1625,7 +1629,7 @@ function App() {
                 </div>
                 <div className="info-item">
                   <span className="info-label">Phase:</span>
-                  <span className="info-value">{gamePhase === 'waiting' ? 'Preflop' : gamePhase.charAt(0).toUpperCase() + gamePhase.slice(1)}</span>
+                  <span className="info-value">{phaseDisplayName}</span>
                 </div>
                 <div className="info-item">
                   <span className="info-label">Current Bet:</span>
@@ -1821,12 +1825,16 @@ function App() {
                 // Use 'preflop' as display phase for validation when in 'waiting' or 'showdown' (buttons will be disabled anyway)
                 const displayPhase = (gamePhase === 'waiting' || gamePhase === 'showdown') ? 'preflop' : gamePhase;
                 const callValidation = humanPlayer ? validateCallAction(humanPlayer, currentBet, displayPhase) : { valid: false, callAmount: 0 };
-                
-                // Debug logging for button state
-                console.log('DEBUG: Button render - gamePhase:', gamePhase, 'currentPlayerIndex:', currentPlayerIndex, 'isPlayerTurn:', isPlayerTurn, 'handComplete:', handComplete);
-                
+
                 if (!humanPlayer) return null;
-                
+
+                // Compute max raise once — considers opponent's ability to call
+                const opponent = players.find(p => !p.hasFolded && !p.isHuman);
+                const maxRaiseByOpponent = opponent ? opponent.chips - (currentBet - opponent.currentBet) : humanPlayer.chips;
+                const maxRaise = Math.max(5, Math.min(humanPlayer.chips, maxRaiseByOpponent));
+                const currentRaiseValue = raiseAmount === '' ? 5 : parseInt(raiseAmount, 10);
+                const raiseValidation = validateRaiseAction(humanPlayer, currentBet, raiseAmount === '' ? '5' : raiseAmount, displayPhase);
+
                 return (
                   <div className={`betting-controls ${!isPlayerTurn ? 'disabled' : ''}`}>
                     <button
@@ -1854,25 +1862,17 @@ function App() {
                           className="raise-input"
                           min="5"
                           readOnly
-                          disabled={!isPlayerTurn || (raiseAmount !== '' && !validateRaiseAction(humanPlayer, currentBet, raiseAmount, displayPhase).valid) || humanPlayer.chips === 0}
+                          disabled={!isPlayerTurn || (raiseAmount !== '' && !raiseValidation.valid) || humanPlayer.chips === 0}
                         />
                         <div className="raise-controls">
                           <button
                             type="button"
                             className="raise-arrow raise-up"
                             onClick={() => {
-                              const currentValue = raiseAmount === '' ? 5 : parseInt(raiseAmount);
-                              const opponent = players.find(p => !p.hasFolded && !p.isHuman);
-                              // Calculate maximum raise considering opponent's ability to call
-                              const maxRaiseByOpponent = opponent ? opponent.chips - (currentBet - opponent.currentBet) : humanPlayer.chips;
-                              const maxRaise = Math.min(humanPlayer.chips, maxRaiseByOpponent);
-                              const newValue = Math.min(currentValue + 5, maxRaise);
+                              const newValue = Math.min(currentRaiseValue + 5, maxRaise);
                               setRaiseAmount(newValue.toString());
                             }}
-                            disabled={!isPlayerTurn || humanPlayer.chips === 0 || (raiseAmount !== '' && parseInt(raiseAmount) >= Math.min(humanPlayer.chips, (() => {
-                              const opponent = players.find(p => !p.hasFolded && !p.isHuman);
-                              return opponent ? opponent.chips - (currentBet - opponent.currentBet) : humanPlayer.chips;
-                            })()))}
+                            disabled={!isPlayerTurn || humanPlayer.chips === 0 || currentRaiseValue >= maxRaise}
                             title="Increase raise amount"
                           >
                             ▲
@@ -1881,37 +1881,21 @@ function App() {
                             type="button"
                             className="raise-arrow raise-down"
                             onClick={() => {
-                              const currentValue = raiseAmount === '' ? 5 : parseInt(raiseAmount);
-                              const newValue = Math.max(currentValue - 5, 5);
+                              const newValue = Math.max(currentRaiseValue - 5, 5);
                               setRaiseAmount(newValue.toString());
                             }}
-                            disabled={!isPlayerTurn || humanPlayer.chips === 0 || (raiseAmount !== '' && parseInt(raiseAmount) <= 5)}
+                            disabled={!isPlayerTurn || humanPlayer.chips === 0 || currentRaiseValue <= 5}
                             title="Decrease raise amount"
                           >
                             ▼
                           </button>
                         </div>
                       </div>
-                      {/* Range slider for touch-friendly raise on mobile */}
-                      <input
-                        type="range"
-                        className="raise-slider"
-                        min={5}
-                        max={Math.max(5, Math.min(humanPlayer.chips, (() => {
-                          const opponent = players.find(p => !p.hasFolded && !p.isHuman);
-                          return opponent ? opponent.chips - (currentBet - opponent.currentBet) : humanPlayer.chips;
-                        })()))}
-                        step={5}
-                        value={raiseAmount === '' ? 5 : parseInt(raiseAmount)}
-                        onChange={(e) => setRaiseAmount(e.target.value)}
-                        disabled={!isPlayerTurn || humanPlayer.chips === 0}
-                      />
                       <button
                         className="bet-button raise-button"
                         onClick={() => handleBettingAction('raise')}
-                        disabled={!isPlayerTurn || !validateRaiseAction(humanPlayer, currentBet, raiseAmount === '' ? '5' : raiseAmount, displayPhase).valid || humanPlayer.chips === 0}
-                        title={!validateRaiseAction(humanPlayer, currentBet, raiseAmount === '' ? '5' : raiseAmount, displayPhase).valid ?
-                          validateRaiseAction(humanPlayer, currentBet, raiseAmount === '' ? '5' : raiseAmount, displayPhase).reason :
+                        disabled={!isPlayerTurn || !raiseValidation.valid || humanPlayer.chips === 0}
+                        title={!raiseValidation.valid ? raiseValidation.reason :
                           humanPlayer.chips === 0 ? 'No funds remaining' :
                           undefined}
                       >

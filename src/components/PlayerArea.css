@@ -322,10 +322,6 @@
     display: none;
   }
 
-  .turn-arrow {
-    font-size: 10px;
-  }
-
   .action-indicator {
     top: -10px;
     right: 8px;

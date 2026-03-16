@@ -30,7 +30,7 @@ A retroactive log of all features built to date, organized by phase. This replac
 | Burn cards display | 3 fixed card slots for discarded cards | [Layout & Components](../ui-ux/layout-and-components.md) |
 | Deck visual | Stacked face-down card with depth pseudo-elements | [Layout & Components](../ui-ux/layout-and-components.md) |
 | Glassmorphism panels | Semi-transparent blur backgrounds on all sections | [Visual Design](../ui-ux/visual-design.md) |
-| Responsive design (mobile) | Single-column stack at 768px breakpoint | [Visual Design](../ui-ux/visual-design.md) |
+| Responsive design (mobile) | Initial single-column stack at 768px breakpoint (superseded by Phase 6 redesign) | [Visual Design](../ui-ux/visual-design.md) |
 
 ## Phase 3: Game Flow
 
@@ -95,6 +95,24 @@ A retroactive log of all features built to date, organized by phase. This replac
 | Button hover/active effects | Lift on hover, snap back on press | [Visual Design](../ui-ux/visual-design.md) |
 | Game over gold glow | Status container with pulsing gold border | [Animations](../ui-ux/animations.md) |
 | Winner crown bounce | Emoji bounces in showdown result | [Animations](../ui-ux/animations.md) |
+
+## Phase 6: Mobile-First Responsive Redesign
+
+| Feature | Description | PRD Reference |
+|---------|-------------|---------------|
+| Single-screen mobile layout | All gameplay UI fits on one screen without scrolling (tested at 375×667 iPhone SE) | [Visual Design](../ui-ux/visual-design.md) |
+| Hidden desktop-only sections | Header, game info box, game log hidden on mobile; replaced with compact alternatives | [Layout & Components](../ui-ux/layout-and-components.md) |
+| Mobile info bar | Compact inline bar showing round, phase, and current bet | [Layout & Components](../ui-ux/layout-and-components.md) |
+| Inline pot indicator | Pot amount displayed inline above community cards on mobile | [Layout & Components](../ui-ux/layout-and-components.md) |
+| Game log toggle overlay | Floating overlay with toggle button replaces always-visible log | [Layout & Components](../ui-ux/layout-and-components.md) |
+| Horizontal player areas | Player info displayed as inline row (name + chips + cards) instead of vertical stack | [Layout & Components](../ui-ux/layout-and-components.md) |
+| Horizontal action buttons | Fold, Call/Check, Raise buttons in a single horizontal row | [Layout & Components](../ui-ux/layout-and-components.md) |
+| Responsive card sizing | CSS custom properties for card dimensions at 768px and 480px breakpoints | [Layout & Components](../ui-ux/layout-and-components.md) |
+| Compact bet chips | Smaller chip indicators (28px at 768px, 24px at 480px) | [Visual Design](../ui-ux/visual-design.md) |
+| Card padding fix | Reduced card front padding to keep rank/suit corners within card borders at small sizes | [Visual Design](../ui-ux/visual-design.md) |
+| Turn indicator hidden | Orange border sufficient on mobile; TURN badge hidden to reduce clutter | [Visual Design](../ui-ux/visual-design.md) |
+| Viewport-fill layout | Flex column chain with 100dvh fills viewport, centering game content vertically | [Layout & Components](../ui-ux/layout-and-components.md) |
+| Mobile zoom bypass | `applyScale` skips zoom scaling on mobile, letting responsive CSS handle layout | [Architecture](../technical/architecture.md) |
 
 ## Not Yet Implemented
 

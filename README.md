@@ -7,7 +7,7 @@ A web-based Texas Hold'em poker game built with React & TypeScript. Play against
 - 🤖 Computer AI opponent
 - 🎨 Clean, modern UI with card animations
 - ⚡ Built with React + TypeScript
-- 📱 Responsive design
+- 📱 Mobile-first responsive design (single-screen layout, no scrolling)
 
 ## Tech Stack
 - **Frontend**: React 18 with TypeScript
@@ -26,7 +26,7 @@ A web-based Texas Hold'em poker game built with React & TypeScript. Play against
 
 1. **Install Dependencies**
    ```bash
-   cd "C:\Projects\Texas Holdem Poker"
+   cd heads-up-texas-holdem
    npm install
    ```
 

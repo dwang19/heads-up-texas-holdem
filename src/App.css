@@ -688,12 +688,7 @@
   :root {
     --font-size-pot: 20px;
     --font-size-section-heading: 14px;
-    --card-medium-w: 50px;
-    --card-medium-h: 70px;
-    --card-medium-font: 11px;
-    --card-small-w: 42px;
-    --card-small-h: 59px;
-    --card-small-font: 9px;
+    /* Card size tokens are defined in Card.css */
   }
 
   /* === STEP 1: Hide non-essential sections, restructure grid === */
@@ -821,10 +816,6 @@
     padding: 6px 6px 6px 16px;
   }
 
-  .raise-slider {
-    display: none !important;
-  }
-
   .raise-controls {
     display: flex !important;
   }
@@ -902,23 +893,8 @@
     letter-spacing: 1px;
   }
 
-  /* === STEP 8: Compact status slot === */
-  .status-slot {
-    height: auto;
-    min-height: 0;
-    margin-top: 2px;
-    flex-shrink: 0;
-  }
-
-  .status-container {
-    padding: 6px 10px;
-    min-height: 32px;
-    border-radius: 8px;
-  }
-
-  .status-container.hidden {
-    display: none;
-  }
+  /* === STEP 8: Status slot — overrides are in the second 768px block
+     (after desktop rules) for correct cascade ordering === */
 
   /* === Mobile-only elements (hidden on desktop by default — see below) === */
   .mobile-info-bar {
@@ -1076,9 +1052,7 @@
     --font-size-section-heading: 12px;
     --gap-medium: 10px;
     --gap-large: 12px;
-    --card-medium-w: 44px;
-    --card-medium-h: 62px;
-    --card-medium-font: 10px;
+    /* Card size tokens are defined in Card.css */
   }
 
   /* Reduce backdrop-filter blur for performance on low-end devices */
@@ -1343,11 +1317,6 @@ html, body {
 .raise-arrow:disabled {
   opacity: 0.3;
   cursor: not-allowed;
-}
-
-/* Range slider for mobile raise — hidden on desktop */
-.raise-slider {
-  display: none;
 }
 
 .raise-up {
