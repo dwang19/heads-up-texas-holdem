@@ -1,6 +1,6 @@
-# Texas Hold'em Poker Game 🃏
+# Heads-Up Texas Hold'em 🃏
 
-A web-based Texas Hold'em poker game built with React & TypeScript. Play against a computer opponent in this heads-up poker game.
+A web-based heads-up Texas Hold'em poker game built with React & TypeScript. Play 1v1 against an AI opponent with real poker strategy.
 
 ## Features
 - ♠️ Classic Texas Hold'em rules (heads-up play)

@@ -11,7 +11,7 @@ import App from '../../App';
 describe('App init (GF-001–GF-006, LC-010–LC-016)', () => {
   test('init overlay shows Welcome and form', () => {
     render(<App />);
-    expect(screen.getByText(/Welcome to Texas Hold'em/i)).toBeInTheDocument();
+    expect(screen.getByText(/Welcome to Heads-Up Hold'em/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Your Name/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Start Game/i })).toBeInTheDocument();
   });
@@ -55,7 +55,7 @@ describe('App init (GF-001–GF-006, LC-010–LC-016)', () => {
       jest.advanceTimersByTime(2000);
     });
     await waitFor(() => {
-      expect(screen.queryByText(/Welcome to Texas Hold'em/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Welcome to Heads-Up Hold'em/i)).not.toBeInTheDocument();
     });
     jest.useRealTimers();
   });
@@ -65,6 +65,6 @@ describe('App init (GF-001–GF-006, LC-010–LC-016)', () => {
     const input = screen.getByPlaceholderText(/Enter your name/i);
     await userEvent.clear(input);
     await userEvent.keyboard('{Enter}');
-    expect(screen.getByText(/Welcome to Texas Hold'em/i)).toBeInTheDocument();
+    expect(screen.getByText(/Welcome to Heads-Up Hold'em/i)).toBeInTheDocument();
   });
 });

@@ -20,7 +20,7 @@ describe('Game Flow (GF-*)', () => {
   describe('GF-001–GF-006: Initialization', () => {
     test('init overlay visible by default with Welcome and Start button', () => {
       render(<App />);
-      expect(screen.getByText(/Welcome to Texas Hold'em/i)).toBeInTheDocument();
+      expect(screen.getByText(/Welcome to Heads-Up Hold'em/i)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Start Game/i })).toBeInTheDocument();
     });
 
@@ -163,13 +163,13 @@ describe('Game Flow (GF-*)', () => {
       // This is structural: we verify the game-over detection path exists.
       // Full simulation would require many rounds. Instead test the UI pieces exist.
       render(<App />);
-      const overlay = screen.getByText(/Welcome to Texas Hold'em/i);
+      const overlay = screen.getByText(/Welcome to Heads-Up Hold'em/i);
       expect(overlay).toBeInTheDocument();
     });
 
     test('Quit button on game-over returns to init', async () => {
       render(<App />);
-      expect(screen.getByText(/Welcome to Texas Hold'em/i)).toBeInTheDocument();
+      expect(screen.getByText(/Welcome to Heads-Up Hold'em/i)).toBeInTheDocument();
     });
   });
 });

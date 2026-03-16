@@ -83,6 +83,7 @@ function App() {
   const [holeCardAnimating, setHoleCardAnimating] = useState<boolean>(false);
   const [aiActionDisplay, setAiActionDisplay] = useState<{action: string, amount?: number, isThinking: boolean} | null>(null);
   const [phaseAnnouncement, setPhaseAnnouncement] = useState<string | null>(null);
+  const [blindAnnouncement, setBlindAnnouncement] = useState<string | null>(null);
   const [playerLastActions, setPlayerLastActions] = useState<Record<string, string>>({});
   const [gameLog, setGameLog] = useState<Array<{timestamp: Date, message: string}>>([{ timestamp: new Date(), message: 'Game started! Player1 vs AI Player' }]);
   const [aiCardsFlipping, setAiCardsFlipping] = useState<boolean>(false);
@@ -234,9 +235,10 @@ function App() {
     setAiCardsFlipping(false);
     setLastPotWon(0);
     setAiRaisedPreflop(false);
+    setBlindAnnouncement(null);
     setGameLog([{ timestamp: new Date(), message: `Game started! ${humanPlayerName} vs AI Player` }]);
 
-    // Step 2: After overlay fades, post blinds with animation
+    // Step 2: After overlay fades, post blinds with staggered announcements
     setTimeout(() => {
       const SMALL_BLIND = 5;
       const BIG_BLIND = 10;
@@ -246,40 +248,58 @@ function App() {
       const sbPlayer = initialPlayers.find(p => p.isSmallBlind)!;
       const bbPlayer = initialPlayers.find(p => p.isBigBlind)!;
 
-      const playersWithBlinds = initialPlayers.map(player => {
-        if (player.isSmallBlind) {
-          return { ...player, chips: player.chips - SMALL_BLIND, currentBet: SMALL_BLIND };
-        } else if (player.isBigBlind) {
-          return { ...player, chips: player.chips - BIG_BLIND, currentBet: BIG_BLIND };
-        }
-        return player;
-      });
-
-      setPlayers(playersWithBlinds);
-      setPot(SMALL_BLIND + BIG_BLIND);
-      setCurrentBet(BIG_BLIND);
-
-      verifyChipAccounting(playersWithBlinds, SMALL_BLIND + BIG_BLIND, 'startGame (after blinds posted)');
-
       setGameLog(prev => [
         ...prev,
         { timestamp: new Date(), message: `Round 1 - New hand dealt` },
-        { timestamp: new Date(), message: `${sbPlayer.name} posts small blind $${SMALL_BLIND}` },
-        { timestamp: new Date(), message: `${bbPlayer.name} posts big blind $${BIG_BLIND}` }
       ]);
 
-      // Step 3: Deal hole cards (BB receives first card, SB receives last)
+      // Step 2a: Small blind posts $5
+      const playersWithSB = initialPlayers.map(player => {
+        if (player.isSmallBlind) {
+          return { ...player, chips: player.chips - SMALL_BLIND, currentBet: SMALL_BLIND };
+        }
+        return player;
+      });
+      setPlayers(playersWithSB);
+      setPot(SMALL_BLIND);
+      setBlindAnnouncement(`${sbPlayer.name} posts small blind $${SMALL_BLIND}`);
+      setGameLog(prev => [
+        ...prev,
+        { timestamp: new Date(), message: `${sbPlayer.name} posts small blind $${SMALL_BLIND}` },
+      ]);
+
+      // Step 2b: Big blind posts $10 (after delay)
       setTimeout(() => {
-        setGamePhase('preflop');
+        const playersWithBlinds = playersWithSB.map(player => {
+          if (player.isBigBlind) {
+            return { ...player, chips: player.chips - BIG_BLIND, currentBet: BIG_BLIND };
+          }
+          return player;
+        });
+        setPlayers(playersWithBlinds);
+        setPot(SMALL_BLIND + BIG_BLIND);
+        setCurrentBet(BIG_BLIND);
+        setBlindAnnouncement(`${bbPlayer.name} posts big blind $${BIG_BLIND}`);
+        setGameLog(prev => [
+          ...prev,
+          { timestamp: new Date(), message: `${bbPlayer.name} posts big blind $${BIG_BLIND}` },
+        ]);
 
-        const humanHand = newDeck.dealCards(2);
-        const aiHand = newDeck.dealCards(2);
+        verifyChipAccounting(playersWithBlinds, SMALL_BLIND + BIG_BLIND, 'startGame (after blinds posted)');
 
-        const bbIsHuman = playersWithBlinds.find(p => p.isBigBlind)?.isHuman;
-        const bbHand = bbIsHuman ? humanHand : aiHand;
-        const sbHand = bbIsHuman ? aiHand : humanHand;
+        // Step 3: Clear announcement and deal hole cards
+        setTimeout(() => {
+          setBlindAnnouncement(null);
+          setGamePhase('preflop');
 
-        const firstPlayerIndex = getFirstPlayerIndex(playersWithBlinds, 'preflop');
+          const humanHand = newDeck.dealCards(2);
+          const aiHand = newDeck.dealCards(2);
+
+          const bbIsHuman = playersWithBlinds.find(p => p.isBigBlind)?.isHuman;
+          const bbHand = bbIsHuman ? humanHand : aiHand;
+          const sbHand = bbIsHuman ? aiHand : humanHand;
+
+          const firstPlayerIndex = getFirstPlayerIndex(playersWithBlinds, 'preflop');
 
         setHoleCardAnimating(true);
         // Card 1 -> BB
@@ -319,8 +339,9 @@ function App() {
             }, 300);
           }, 300);
         }, 200);
-      }, 500);
-    }, 300);
+        }, 2200); // Step 3: delay after BB announcement before dealing
+      }, 2200); // Step 2b: delay after SB announcement before BB posts
+    }, 300); // Step 2: delay for overlay fade
   };
 
   // Reset game to initial state
@@ -346,6 +367,7 @@ function App() {
     setAiCardsFlipping(false);
     setLastPotWon(0);
     setAiRaisedPreflop(false);
+    setBlindAnnouncement(null);
   };
 
   // Handle fold win - when someone folds, award pot immediately without revealing cards
@@ -593,25 +615,15 @@ function App() {
   const dealNewHand = (playersToUse?: Player[]) => {
     // Use provided players or fall back to current state
     const currentPlayers = playersToUse || players;
-    
+
     // Verify chip accounting at start of new hand - pot should be 0 from previous round
     verifyChipAccounting(currentPlayers, 0, 'dealNewHand (start of new hand)');
-    
+
     console.log('DEBUG: dealNewHand called with playersToUse?', !!playersToUse);
-    console.log('DEBUG: dealNewHand - currentPlayers[0] (human):', 
-      'name=' + currentPlayers[0].name,
-      'isSmallBlind=' + currentPlayers[0].isSmallBlind,
-      'isBigBlind=' + currentPlayers[0].isBigBlind
-    );
-    console.log('DEBUG: dealNewHand - currentPlayers[1] (ai):', 
-      'name=' + currentPlayers[1].name,
-      'isSmallBlind=' + currentPlayers[1].isSmallBlind,
-      'isBigBlind=' + currentPlayers[1].isBigBlind
-    );
     setGameLog(prev => [...prev, { timestamp: new Date(), message: `Round ${roundNumber} - New hand dealt` }]);
     const newDeck = createDeck();
 
-    // Deal hole cards to players
+    // Deal hole cards to players (prepared now, animated later)
     const humanHand = newDeck.dealCards(2);
     const aiHand = newDeck.dealCards(2);
 
@@ -624,96 +636,113 @@ function App() {
       hasActedThisRound: false, // Reset for new betting round
     }));
 
-    // Post blinds ($5 small blind, $10 big blind)
     const SMALL_BLIND = 5;
     const BIG_BLIND = 10;
 
-    const playersWithBlinds = resetPlayers.map(player => {
-      if (player.isSmallBlind) {
-        return { ...player, chips: Math.max(0, player.chips - SMALL_BLIND), currentBet: SMALL_BLIND };
-      } else if (player.isBigBlind) {
-        return { ...player, chips: Math.max(0, player.chips - BIG_BLIND), currentBet: BIG_BLIND };
-      }
-      return player;
-    });
+    const sbPlayer = resetPlayers.find(p => p.isSmallBlind)!;
+    const bbPlayer = resetPlayers.find(p => p.isBigBlind)!;
 
-    // Verify chip accounting after blinds posted - pot will be $15
-    verifyChipAccounting(playersWithBlinds, SMALL_BLIND + BIG_BLIND, 'dealNewHand (after blinds posted)');
-
+    // Reset all state for new hand
     setDeck(newDeck);
-    setPlayers(playersWithBlinds);
-    setCommunityCards([]); // Start with no community cards visible
-    setBurnedCards([]); // Reset burned cards for new hand
-    setPot(SMALL_BLIND + BIG_BLIND);
-    setCurrentBet(BIG_BLIND);
-    // Pre-flop: Small blind acts first (after blinds are posted)
-    console.log('DEBUG: dealNewHand - playersWithBlinds[0]:', 
-      'name=' + playersWithBlinds[0].name,
-      'isSmallBlind=' + playersWithBlinds[0].isSmallBlind,
-      'isBigBlind=' + playersWithBlinds[0].isBigBlind
-    );
-    console.log('DEBUG: dealNewHand - playersWithBlinds[1]:', 
-      'name=' + playersWithBlinds[1].name,
-      'isSmallBlind=' + playersWithBlinds[1].isSmallBlind,
-      'isBigBlind=' + playersWithBlinds[1].isBigBlind
-    );
-    const firstPlayerIndex = getFirstPlayerIndex(playersWithBlinds, 'preflop');
-    console.log('DEBUG: dealNewHand - firstPlayerIndex:', firstPlayerIndex);
-    setCurrentPlayerIndex(firstPlayerIndex);
-    setGamePhase('preflop');
+    setCommunityCards([]);
+    setBurnedCards([]);
+    setCurrentBet(0);
     setRaiseAmount('');
     setWinner(null);
     console.log('DEBUG: Setting handComplete to false in dealNewHand');
     setHandComplete(false);
-    setPlayerLastActions({}); // Reset last actions for new hand
-    setShowdownData(null); // Clear showdown data
-    setAiCardsFlipping(false); // Reset flip animation state
-    setLastPotWon(0); // Reset last pot won
-    setAiRaisedPreflop(false); // Reset preflop aggressor tracking
+    setPlayerLastActions({});
+    setShowdownData(null);
+    setAiCardsFlipping(false);
+    setLastPotWon(0);
+    setAiRaisedPreflop(false);
 
-    // Determine deal order based on blinds: BB gets first card, SB gets last
-    const bbIsHuman = playersWithBlinds.find(p => p.isBigBlind)?.isHuman;
-    const bbHand = bbIsHuman ? humanHand : aiHand;
-    const sbHand = bbIsHuman ? aiHand : humanHand;
+    // Step 1: Small blind posts $5
+    const playersWithSB = resetPlayers.map(player => {
+      if (player.isSmallBlind) {
+        return { ...player, chips: Math.max(0, player.chips - SMALL_BLIND), currentBet: SMALL_BLIND };
+      }
+      return player;
+    });
+    setPlayers(playersWithSB);
+    setPot(SMALL_BLIND);
+    setBlindAnnouncement(`${sbPlayer.name} posts small blind $${SMALL_BLIND}`);
+    setGameLog(prev => [
+      ...prev,
+      { timestamp: new Date(), message: `${sbPlayer.name} posts small blind $${SMALL_BLIND}` },
+    ]);
 
-    // Animate hole card dealing (BB first, SB last)
-    setHoleCardAnimating(true);
+    // Step 2: Big blind posts $10 (after delay)
     setTimeout(() => {
-      // Card 1 -> BB
-      setPlayers(prev => prev.map(player => ({
-        ...player,
-        cards: player.isBigBlind ? [bbHand[0]] : player.cards
-      })));
+      const playersWithBlinds = playersWithSB.map(player => {
+        if (player.isBigBlind) {
+          return { ...player, chips: Math.max(0, player.chips - BIG_BLIND), currentBet: BIG_BLIND };
+        }
+        return player;
+      });
+      setPlayers(playersWithBlinds);
+      setPot(SMALL_BLIND + BIG_BLIND);
+      setCurrentBet(BIG_BLIND);
+      setBlindAnnouncement(`${bbPlayer.name} posts big blind $${BIG_BLIND}`);
+      setGameLog(prev => [
+        ...prev,
+        { timestamp: new Date(), message: `${bbPlayer.name} posts big blind $${BIG_BLIND}` },
+      ]);
 
+      verifyChipAccounting(playersWithBlinds, SMALL_BLIND + BIG_BLIND, 'dealNewHand (after blinds posted)');
+
+      // Step 3: Clear announcement and deal cards
       setTimeout(() => {
-        // Card 2 -> SB
-        setPlayers(prev => prev.map(player => ({
-          ...player,
-          cards: player.isSmallBlind ? [sbHand[0]] : player.cards
-        })));
+        setBlindAnnouncement(null);
+        setGamePhase('preflop');
+        const firstPlayerIndex = getFirstPlayerIndex(playersWithBlinds, 'preflop');
 
+        // Determine deal order based on blinds: BB gets first card, SB gets last
+        const bbIsHuman = playersWithBlinds.find(p => p.isBigBlind)?.isHuman;
+        const bbHand = bbIsHuman ? humanHand : aiHand;
+        const sbHand = bbIsHuman ? aiHand : humanHand;
+
+        // Animate hole card dealing (BB first, SB last)
+        setHoleCardAnimating(true);
         setTimeout(() => {
-          // Card 3 -> BB
+          // Card 1 -> BB
           setPlayers(prev => prev.map(player => ({
             ...player,
-            cards: player.isBigBlind ? bbHand : player.cards
+            cards: player.isBigBlind ? [bbHand[0]] : player.cards
           })));
 
           setTimeout(() => {
-            // Card 4 -> SB (last card dealt)
+            // Card 2 -> SB
             setPlayers(prev => prev.map(player => ({
               ...player,
-              cards: player.isSmallBlind ? sbHand : player.cards
+              cards: player.isSmallBlind ? [sbHand[0]] : player.cards
             })));
 
             setTimeout(() => {
-              setHoleCardAnimating(false);
-              // AI action will be triggered by the useEffect that watches for AI's turn
-            }, 600); // Animation duration
-          }, 300); // Delay between cards
-        }, 300);
-      }, 300);
-    }, 200); // Initial delay
+              // Card 3 -> BB
+              setPlayers(prev => prev.map(player => ({
+                ...player,
+                cards: player.isBigBlind ? bbHand : player.cards
+              })));
+
+              setTimeout(() => {
+                // Card 4 -> SB (last card dealt)
+                setPlayers(prev => prev.map(player => ({
+                  ...player,
+                  cards: player.isSmallBlind ? sbHand : player.cards
+                })));
+
+                setTimeout(() => {
+                  setHoleCardAnimating(false);
+                  setCurrentPlayerIndex(firstPlayerIndex);
+                  // AI action will be triggered by the useEffect that watches for AI's turn
+                }, 600); // Animation duration
+              }, 300); // Delay between cards
+            }, 300);
+          }, 300);
+        }, 200); // Initial delay
+      }, 2200); // Step 3: delay after BB announcement
+    }, 2200); // Step 2: delay after SB announcement
   };
 
   // Start next round with blind rotation (chips persist across hands)
@@ -740,6 +769,7 @@ function App() {
     setAiCardsFlipping(false); // Reset flip animation state
     setLastPotWon(0); // Reset last pot won
     setAiRaisedPreflop(false); // Reset preflop aggressor tracking
+    setBlindAnnouncement(null); // Clear any blind announcement
 
     // Start new hand after a brief delay - pass rotated players directly to avoid stale closure
     setTimeout(() => {
@@ -1569,7 +1599,7 @@ function App() {
       {!gameStarted && (
         <div className="game-init-overlay">
           <div className="game-init-screen">
-            <h2>Welcome to Texas Hold'em!</h2>
+            <h2>Welcome to Heads-Up Hold'em!</h2>
             <div className="init-form" onKeyPress={handleInitialScreenKeyPress}>
               <div className="form-group">
                 <label htmlFor="player-name">Your Name:</label>
@@ -1631,7 +1661,7 @@ function App() {
 
       <div className="viewport-scaler" ref={scalerRef}>
       <header className="App-header">
-        <h1>Texas Hold'em Poker</h1>
+        <h1>Heads-Up Texas Hold'em</h1>
       </header>
 
       <main className={`game-container ${gamePhase === 'showdown' ? 'showdown-active' : ''}`}>
@@ -1943,7 +1973,7 @@ function App() {
         {/* Status Slot - fixed-height reservation prevents CLS when content grows/shrinks */}
         <div className="status-slot">
         {/* Status Container - Shows AI actions during play, showdown/fold results when hand is complete */}
-        <div className={`status-container ${gameOver ? 'game-over-active' : ''} ${aiActionDisplay || gamePhase === 'showdown' || (handComplete && winner) || gameOver ? 'visible' : 'hidden'}`}>
+        <div className={`status-container ${gameOver ? 'game-over-active' : ''} ${blindAnnouncement || aiActionDisplay || gamePhase === 'showdown' || (handComplete && winner) || gameOver ? 'visible' : 'hidden'}`}>
           {gameOver && overallWinner ? (
             <div className="showdown-status-content game-over-content">
               <div className="showdown-winner-info">
@@ -2116,6 +2146,11 @@ function App() {
                   Next Round
                 </button>
               )}
+            </div>
+          ) : blindAnnouncement ? (
+            <div className="blind-announcement-content">
+              <div className="blind-emoji">💰</div>
+              <div className="blind-announcement-text">{blindAnnouncement}</div>
             </div>
           ) : aiActionDisplay ? (
             <div className="ai-action-content">
