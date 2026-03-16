@@ -56,3 +56,42 @@
     transform: scale(1);
   }
 }
+
+@media (max-width: 768px) {
+  .bet-chip-container {
+    min-height: 28px;
+  }
+
+  .bet-chip {
+    width: 28px;
+    height: 28px;
+    border-width: 2px;
+  }
+
+  .bet-chip-value {
+    font-size: 10px;
+  }
+
+  .bet-chip-dollar {
+    font-size: 7px;
+  }
+}
+
+@media (max-width: 480px) {
+  .bet-chip-container {
+    min-height: 24px;
+  }
+
+  .bet-chip {
+    width: 24px;
+    height: 24px;
+  }
+
+  .bet-chip-value {
+    font-size: 9px;
+  }
+
+  .bet-chip-dollar {
+    font-size: 6px;
+  }
+}

@@ -454,25 +454,11 @@
   }
 }
 
-/* Responsive adjustments */
+/* Responsive adjustments — compact cards for single-screen mobile layout */
 @media (max-width: 768px) {
   :root {
-    --card-large-w: 80px;
-    --card-large-h: 112px;
-    --card-large-font: 16px;
-    --card-medium-w: 60px;
-    --card-medium-h: 84px;
-    --card-medium-font: 12px;
-    --card-small-w: 50px;
-    --card-small-h: 70px;
-    --card-small-font: 10px;
-  }
-}
-
-@media (max-width: 480px) {
-  :root {
-    --card-large-w: 65px;
-    --card-large-h: 91px;
+    --card-large-w: 70px;
+    --card-large-h: 98px;
     --card-large-font: 14px;
     --card-medium-w: 50px;
     --card-medium-h: 70px;
@@ -480,6 +466,41 @@
     --card-small-w: 42px;
     --card-small-h: 59px;
     --card-small-font: 9px;
+  }
+
+  /* Reduce card padding so corners stay within card at smaller sizes */
+  .card__front {
+    padding: 4px;
+  }
+
+  .card__suit {
+    margin-top: 0;
+  }
+
+  .card__suit-large {
+    font-size: 1.6em;
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --card-large-w: 55px;
+    --card-large-h: 77px;
+    --card-large-font: 12px;
+    --card-medium-w: 44px;
+    --card-medium-h: 62px;
+    --card-medium-font: 10px;
+    --card-small-w: 36px;
+    --card-small-h: 50px;
+    --card-small-font: 8px;
+  }
+
+  .card__front {
+    padding: 3px;
+  }
+
+  .card__suit-large {
+    font-size: 1.4em;
   }
 
   /* Scale down dealing animation distances for small screens */

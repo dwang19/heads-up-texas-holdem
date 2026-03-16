@@ -88,6 +88,7 @@ function App() {
   const logEntriesRef = useRef<HTMLDivElement>(null);
   const scalerRef = useRef<HTMLDivElement>(null);
   const [hoveredPlayerHand, setHoveredPlayerHand] = useState<'human' | 'ai' | null>(null);
+  const [showMobileLog, setShowMobileLog] = useState<boolean>(false);
 
   // Chip accounting verification function - helps catch bugs early
   // Total chips + pot should always equal $200 (starting chips for 2 players)
@@ -1607,6 +1608,13 @@ function App() {
         <div className="main-game-layout">
           {/* Center Section: Game Info + AI Player, Cards Row, Human Player */}
           <div className="center-section">
+            {/* Mobile Info Bar - compact replacement for game-info-box on mobile */}
+            <div className="mobile-info-bar">
+              <span>R{roundNumber}</span>
+              <span className="mobile-phase">{gamePhase === 'waiting' ? 'Preflop' : gamePhase.charAt(0).toUpperCase() + gamePhase.slice(1)}</span>
+              <span>Bet: ${currentBet}</span>
+            </div>
+
             {/* Game Info Box - Grid Area: game-info */}
             <div className="game-info-box">
               <h3>Game Info</h3>
@@ -1654,8 +1662,16 @@ function App() {
               </div>
             </div>
 
+            {/* Mobile Log Toggle Button */}
+            <button
+              className="mobile-log-toggle"
+              onClick={() => setShowMobileLog(!showMobileLog)}
+            >
+              {showMobileLog ? '✕ Log' : '📋 Log'}
+            </button>
+
             {/* Game Log Box - Grid Area: game-log */}
-            <div className="game-log-box top-row-log">
+            <div className={`game-log-box top-row-log ${showMobileLog ? 'mobile-visible' : ''}`}>
               <h3>Game Log</h3>
               <div className="log-entries" ref={logEntriesRef}>
                 {gameLog.length === 0 ? (
@@ -1673,6 +1689,9 @@ function App() {
 
             {/* Cards Row: Pot, Community Cards, Deck, and Burn Cards - All Same Height */}
             <div className="cards-row-container">
+              {/* Mobile Pot Indicator - inline with community cards on mobile */}
+              <div className="mobile-pot-indicator">Pot: ${pot}</div>
+
               {/* Pot Display - Left of Community Cards */}
               <div className="pot-display">
                 <h3>Betting Pot</h3>
