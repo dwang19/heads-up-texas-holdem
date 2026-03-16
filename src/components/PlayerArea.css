@@ -230,8 +230,9 @@
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .player-area {
-    min-width: 250px;
-    max-width: 300px;
+    min-width: unset;
+    max-width: 100%;
+    width: 100%;
     padding: 15px;
   }
 
@@ -247,21 +248,54 @@
   .chip-amount {
     font-size: 16px;
   }
+
+  .player-cards {
+    min-height: var(--card-medium-h, 84px);
+  }
 }
 
 @media (max-width: 480px) {
   .player-area {
-    min-width: 220px;
-    max-width: 280px;
+    padding: 12px;
+  }
+
+  .player-header {
+    margin-bottom: 10px;
+  }
+
+  .player-name {
+    font-size: 15px;
   }
 
   .player-name-section {
     flex-direction: column;
-    gap: 5px;
+    gap: 4px;
     align-items: flex-start;
   }
 
   .position-indicators {
     align-self: flex-end;
+  }
+
+  .chip-stack {
+    padding: 6px 10px;
+    min-width: 90px;
+  }
+
+  .chip-amount {
+    font-size: 15px;
+  }
+
+  .chip-icon {
+    font-size: 15px;
+  }
+
+  .player-chips {
+    margin-bottom: 10px;
+    gap: 6px;
+  }
+
+  .player-cards {
+    min-height: var(--card-medium-h, 70px);
   }
 }

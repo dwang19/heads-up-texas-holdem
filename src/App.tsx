@@ -115,6 +115,11 @@ function App() {
   const applyScale = useCallback(() => {
     const el = scalerRef.current;
     if (!el) return;
+    // On mobile, let responsive CSS handle the layout instead of zoom scaling
+    if (window.innerWidth <= 768) {
+      el.style.setProperty('zoom', '1');
+      return;
+    }
     el.style.setProperty('zoom', '1');
     const naturalHeight = el.scrollHeight;
     const viewportHeight = window.innerHeight;
@@ -1868,6 +1873,20 @@ function App() {
                           </button>
                         </div>
                       </div>
+                      {/* Range slider for touch-friendly raise on mobile */}
+                      <input
+                        type="range"
+                        className="raise-slider"
+                        min={5}
+                        max={Math.max(5, Math.min(humanPlayer.chips, (() => {
+                          const opponent = players.find(p => !p.hasFolded && !p.isHuman);
+                          return opponent ? opponent.chips - (currentBet - opponent.currentBet) : humanPlayer.chips;
+                        })()))}
+                        step={5}
+                        value={raiseAmount === '' ? 5 : parseInt(raiseAmount)}
+                        onChange={(e) => setRaiseAmount(e.target.value)}
+                        disabled={!isPlayerTurn || humanPlayer.chips === 0}
+                      />
                       <button
                         className="bet-button raise-button"
                         onClick={() => handleBettingAction('raise')}
