@@ -4,10 +4,11 @@ A web-based Texas Hold'em poker game built with React & TypeScript. Play against
 
 ## Features
 - ♠️ Classic Texas Hold'em rules (heads-up play)
-- 🤖 Computer AI opponent
-- 🎨 Clean, modern UI with card animations
+- 🤖 Smart AI opponent with real poker strategy (see below)
+- 🎨 Clean, modern UI with card animations and pot delta effects
 - ⚡ Built with React + TypeScript
-- 📱 Mobile-first responsive design (single-screen layout, no scrolling)
+- 📱 Mobile-first responsive design with landscape support
+- 💰 Pot-relative bet sizing and $5 raise increments
 
 ## Tech Stack
 - **Frontend**: React 18 with TypeScript
@@ -63,6 +64,20 @@ A web-based Texas Hold'em poker game built with React & TypeScript. Play against
 9. One Pair
 10. High Card
 
+## AI Opponent
+
+The AI uses a multi-layered decision engine designed for competitive heads-up play:
+
+- **Preflop hand charts** — Proper starting hand rankings from premium (AA, KK) down to trash, instead of generic equity. The AI opens, 3-bets, calls, or folds based on hand tier.
+- **Pot-relative bet sizing** — Raises scale with the pot (50-75% pot for value, 33-50% for bluffs). Preflop opens are 2.5-3x the big blind. No more $1 min-raises.
+- **Position awareness** — The AI plays wider ranges in position (on the button) and tighter out of position, with positional adjustments baked into hand strength.
+- **Bluffing & continuation bets** — Pure bluffs with weak hands, semi-bluffs with draws, and c-bets on the flop at personality-driven frequencies.
+- **All-in defense** — Dedicated logic to avoid folding decent hands (pairs+) to large bets or all-ins. Only truly weak hands fold under pressure.
+- **Short-stack play** — When the stack-to-pot ratio drops below 2, the AI shifts to push/fold mode with appropriate hands.
+- **Three personalities** — `aggressive` (wide ranges, frequent bluffs, large sizing), `balanced` (solid default), and `conservative` (tight ranges, rare bluffs, small sizing). Currently defaults to balanced.
+
+All AI logic lives in `src/game/ai.ts`.
+
 ## Project Structure
 
 ```
@@ -78,7 +93,9 @@ texas-holdem-poker/
 │   │   ├── types.ts        # TypeScript interfaces
 │   │   ├── deck.ts         # Card/deck management
 │   │   ├── pokerLogic.ts   # Hand evaluation
-│   │   └── ai.ts           # Computer AI
+│   │   ├── betting.ts      # Betting validation & round logic
+│   │   └── ai.ts           # AI decision engine (hand charts, sizing, bluffing)
+│   ├── __tests__/           # Component & integration tests
 │   ├── App.tsx             # Main app component
 │   └── index.tsx           # App entry point
 └── README.md

@@ -68,6 +68,7 @@ function App() {
   const [gamePhase, setGamePhase] = useState<'waiting' | 'preflop' | 'flop' | 'turn' | 'river' | 'showdown'>('waiting');
   const [raiseAmount, setRaiseAmount] = useState<string>('');
   const [aiPersonality] = useState<AIPersonality>('balanced'); // Hardcoded to balanced
+  const [aiRaisedPreflop, setAiRaisedPreflop] = useState(false);
   const [winner, setWinner] = useState<Player | null>(null);
   const [handComplete, setHandComplete] = useState<boolean>(false);
   const [showdownData, setShowdownData] = useState<{
@@ -232,6 +233,7 @@ function App() {
     setShowdownData(null);
     setAiCardsFlipping(false);
     setLastPotWon(0);
+    setAiRaisedPreflop(false);
     setGameLog([{ timestamp: new Date(), message: `Game started! ${humanPlayerName} vs AI Player` }]);
 
     // Step 2: After overlay fades, post blinds with animation
@@ -343,6 +345,7 @@ function App() {
     setShowdownData(null);
     setAiCardsFlipping(false);
     setLastPotWon(0);
+    setAiRaisedPreflop(false);
   };
 
   // Handle fold win - when someone folds, award pot immediately without revealing cards
@@ -666,6 +669,7 @@ function App() {
     setShowdownData(null); // Clear showdown data
     setAiCardsFlipping(false); // Reset flip animation state
     setLastPotWon(0); // Reset last pot won
+    setAiRaisedPreflop(false); // Reset preflop aggressor tracking
 
     // Determine deal order based on blinds: BB gets first card, SB gets last
     const bbIsHuman = playersWithBlinds.find(p => p.isBigBlind)?.isHuman;
@@ -735,6 +739,7 @@ function App() {
     setShowdownData(null); // Clear showdown data
     setAiCardsFlipping(false); // Reset flip animation state
     setLastPotWon(0); // Reset last pot won
+    setAiRaisedPreflop(false); // Reset preflop aggressor tracking
 
     // Start new hand after a brief delay - pass rotated players directly to avoid stale closure
     setTimeout(() => {
@@ -1173,6 +1178,11 @@ function App() {
         phase: phase
       });
       
+      // Find opponent (human player) for position/stack-depth awareness
+      const humanPlayer = currentPlayers.find(p => p.isHuman);
+      // In heads-up: SB acts first preflop (OOP), but last postflop (IP)
+      const isAiInPosition = phase === 'preflop' ? !aiPlayer.isSmallBlind : aiPlayer.isSmallBlind;
+
       const aiDecision = getAIDecision(
         aiPlayer,
         communityCards,
@@ -1180,7 +1190,10 @@ function App() {
         currentPotAmount,
         phase,
         activePlayersCount,
-        aiPersonality
+        aiPersonality,
+        humanPlayer?.chips,
+        isAiInPosition,
+        aiRaisedPreflop
       );
       
       console.log('DEBUG: AI decision:', aiDecision);
@@ -1237,6 +1250,8 @@ function App() {
             updatedCurrentBet = aiPlayer.currentBet + totalRaiseAmount;
             setAiActionDisplay({ action: 'raises', amount: totalRaiseAmount, isThinking: false });
             aiActionText = `Raise $${totalRaiseAmount}`;
+            // Track if AI raised preflop (for c-bet accuracy)
+            if (phase === 'preflop') setAiRaisedPreflop(true);
           } else {
             // Fallback to call
             const fallbackCallAmount = Math.max(0, updatedCurrentBet - aiPlayer.currentBet);

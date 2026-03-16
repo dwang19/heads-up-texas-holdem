@@ -11,15 +11,59 @@ export interface AIDecisionResult {
 }
 
 /**
- * AI decision making system for Texas Hold'em poker
- * Evaluates hand strength and makes strategic betting decisions
+ * Personality profile — controls how the AI plays across all situations
  */
+interface PersonalityProfile {
+  raiseThreshold: number;      // Hand strength needed to value-raise
+  callThreshold: number;       // Hand strength needed to call a bet
+  bluffFrequency: number;      // 0-1, how often to bluff when checking
+  cBetFrequency: number;       // 0-1, continuation bet frequency
+  sizingMultiplier: number;    // Bet sizing multiplier (1.0 = standard)
+  preflopOpenRange: number;    // 0-1, fraction of hands to open-raise preflop
+}
 
+const PERSONALITY_PROFILES: Record<AIPersonality, PersonalityProfile> = {
+  aggressive: {
+    raiseThreshold: 0.55,
+    callThreshold: 0.25,
+    bluffFrequency: 0.20,
+    cBetFrequency: 0.75,
+    sizingMultiplier: 1.2,
+    preflopOpenRange: 0.55,
+  },
+  balanced: {
+    raiseThreshold: 0.60,
+    callThreshold: 0.30,
+    bluffFrequency: 0.12,
+    cBetFrequency: 0.65,
+    sizingMultiplier: 1.0,
+    preflopOpenRange: 0.45,
+  },
+  conservative: {
+    raiseThreshold: 0.70,
+    callThreshold: 0.40,
+    bluffFrequency: 0.05,
+    cBetFrequency: 0.50,
+    sizingMultiplier: 0.8,
+    preflopOpenRange: 0.30,
+  },
+};
+
+// Big blind amount (used for preflop sizing)
+const BIG_BLIND = 10;
+
+/**
+ * AI decision making system for Texas Hold'em poker
+ * Features: preflop hand charts, pot-relative sizing, position awareness,
+ * bluffing, continuation bets, all-in defense, and personality profiles.
+ */
 export class PokerAI {
   private personality: AIPersonality;
+  private profile: PersonalityProfile;
 
   constructor(personality: AIPersonality = 'balanced') {
     this.personality = personality;
+    this.profile = PERSONALITY_PROFILES[personality];
   }
 
   /**
@@ -31,69 +75,79 @@ export class PokerAI {
     currentBet: number,
     pot: number,
     gamePhase: GameState['phase'],
-    activePlayersCount: number
+    activePlayersCount: number,
+    opponentChips?: number,
+    isInPosition?: boolean,
+    wasAggressor?: boolean
   ): AIDecisionResult {
     if (!player.cards || player.cards.length === 0) {
-      // Safety: if no cards available, just call/check - don't fold
       console.warn('AI: No cards available, defaulting to call');
       return { action: 'call', reasoning: 'No cards to evaluate - defaulting to call' };
     }
 
     // Evaluate hand strength (0-1 scale)
-    const handStrength = this.evaluateHandStrength(player.cards, communityCards, gamePhase);
-
-    // Calculate pot odds
-    const potOdds = this.calculatePotOdds(player, currentBet, pot);
+    const handStrength = this.evaluateHandStrength(player.cards, communityCards, gamePhase, isInPosition);
 
     // Calculate call amount needed
     const callAmount = Math.max(0, currentBet - player.currentBet);
 
-    // DEBUG: Log all input values
+    // Calculate pot odds
+    const potOdds = callAmount > 0 ? callAmount / (pot + callAmount) : 0;
+
+    // DEBUG logging
     console.log('=== AI DECISION DEBUG ===');
     console.log('Player cards:', player.cards.map(c => `${c.displayRank}${c.suit}`).join(', '));
     console.log('Community cards:', communityCards.map(c => `${c.displayRank}${c.suit}`).join(', ') || 'none');
     console.log('Game phase:', gamePhase);
-    console.log('Current bet to match:', currentBet);
-    console.log('Player current bet:', player.currentBet);
-    console.log('Call amount needed:', callAmount);
-    console.log('Player chips:', player.chips);
-    console.log('Pot:', pot);
-    console.log('Hand strength:', handStrength.toFixed(3));
-    console.log('Pot odds:', potOdds.toFixed(3));
-    console.log('Personality:', this.personality);
+    console.log('Current bet to match:', currentBet, '| Call amount:', callAmount);
+    console.log('Player chips:', player.chips, '| Pot:', pot);
+    console.log('Hand strength:', handStrength.toFixed(3), '| Pot odds:', potOdds.toFixed(3));
+    console.log('Personality:', this.personality, '| In position:', isInPosition ?? 'unknown');
 
-    // Make decision based on personality and hand strength
-    const decision = this.decideAction(handStrength, potOdds, callAmount, player.chips, gamePhase, activePlayersCount);
-    
-    console.log('DECISION:', decision.action, '-', decision.reasoning);
+    const decision = this.decideAction(
+      handStrength, potOdds, callAmount, player.chips, pot,
+      gamePhase, activePlayersCount, player.cards, communityCards,
+      opponentChips, isInPosition, wasAggressor
+    );
+
+    console.log('DECISION:', decision.action, decision.amount ? `$${decision.amount}` : '', '-', decision.reasoning);
     console.log('=========================');
-    
+
     return decision;
   }
 
+  // ─── HAND STRENGTH EVALUATION ──────────────────────────────────
+
   /**
-   * Evaluate hand strength and win probability on a scale of 0-1
-   * 0 = worst possible hand (0% chance to win), 1 = nuts (100% chance to win)
-   * Considers current hand equity, improvement potential, and opponent modeling
+   * Evaluate hand strength on a 0-1 scale.
+   * Preflop: uses starting hand chart.
+   * Postflop: uses rank-based equity + improvement potential.
    */
-  private evaluateHandStrength(holeCards: Card[], communityCards: Card[], phase: GameState['phase']): number {
+  private evaluateHandStrength(
+    holeCards: Card[],
+    communityCards: Card[],
+    phase: GameState['phase'],
+    isInPosition?: boolean
+  ): number {
     if (holeCards.length !== 2) return 0;
 
-    // Get current available cards based on game phase
+    // Preflop: use starting hand chart instead of generic rank-based eval
+    if (phase === 'preflop') {
+      return this.evaluatePreflopStrength(holeCards, isInPosition ?? false);
+    }
+
+    // Postflop: combine current hand equity + improvement potential
     let availableCards = [...holeCards];
-    let remainingCards = 0; // Cards yet to be dealt
+    let remainingCards = 0;
 
     switch (phase) {
-      case 'preflop':
-        remainingCards = 5; // Flop(3) + Turn(1) + River(1)
-        break;
       case 'flop':
         availableCards = [...holeCards, ...communityCards.slice(0, 3)];
-        remainingCards = 2; // Turn(1) + River(1)
+        remainingCards = 2;
         break;
       case 'turn':
         availableCards = [...holeCards, ...communityCards.slice(0, 4)];
-        remainingCards = 1; // River(1)
+        remainingCards = 1;
         break;
       case 'river':
       case 'showdown':
@@ -102,29 +156,78 @@ export class PokerAI {
         break;
     }
 
-    // Evaluate current hand strength
     const currentHand = evaluateHand(holeCards, availableCards.slice(2));
-    const currentHandRank = currentHand.rank;
-
-    // Calculate base equity (current hand strength)
-    const baseEquity = this.calculateCurrentEquity(currentHandRank, phase);
-
-    // Calculate hand potential (improvement equity)
+    const baseEquity = this.calculateCurrentEquity(currentHand.rank, phase);
     const improvementEquity = this.calculateImprovementEquity(holeCards, communityCards, phase, remainingCards);
-
-    // Combine current equity with improvement potential
     const totalEquity = this.combineEquity(baseEquity, improvementEquity, remainingCards);
 
     return Math.min(1.0, Math.max(0.0, totalEquity));
   }
 
   /**
-   * Calculate equity from current hand strength
+   * Preflop starting hand chart — returns 0-1 strength based on hand quality.
+   * Much more accurate than the generic rank-based eval for preflop play.
+   */
+  private evaluatePreflopStrength(holeCards: Card[], isInPosition: boolean): number {
+    const [card1, card2] = holeCards;
+    const highRank = Math.max(card1.rank, card2.rank);
+    const lowRank = Math.min(card1.rank, card2.rank);
+    const isSuited = card1.suit === card2.suit;
+    const isPair = card1.rank === card2.rank;
+    const gap = highRank - lowRank;
+
+    let strength: number;
+
+    if (isPair) {
+      // Pocket pairs
+      if (highRank >= 13) strength = 0.95;       // AA, KK
+      else if (highRank === 12) strength = 0.90;  // QQ
+      else if (highRank >= 10) strength = 0.83;   // JJ, TT
+      else if (highRank >= 7) strength = 0.70;    // 99-77
+      else strength = 0.55;                        // 66-22
+    } else if (highRank === 14) {
+      // Ace-x hands
+      if (lowRank >= 13) strength = isSuited ? 0.92 : 0.88; // AK
+      else if (lowRank >= 12) strength = isSuited ? 0.85 : 0.80; // AQ
+      else if (lowRank >= 11) strength = isSuited ? 0.80 : 0.72; // AJ
+      else if (lowRank >= 10) strength = isSuited ? 0.75 : 0.65; // AT
+      else if (isSuited) strength = 0.60 + (lowRank - 2) * 0.01; // A2s-A9s
+      else strength = 0.40 + (lowRank - 2) * 0.02; // A2o-A9o
+    } else if (highRank >= 11 && lowRank >= 10) {
+      // Broadway hands (KQ, KJ, QJ, KT, QT, JT)
+      if (gap <= 1) strength = isSuited ? 0.72 : 0.62; // KQ, QJ, JT
+      else strength = isSuited ? 0.60 : 0.50;            // KJ, KT, QT
+    } else if (isSuited && gap <= 2 && highRank >= 5) {
+      // Suited connectors & 1-gappers (54s-T9s, 64s-T8s)
+      strength = 0.45 + (highRank - 5) * 0.03;
+    } else if (isSuited && gap <= 3 && highRank >= 6) {
+      // Suited 2-gappers
+      strength = 0.38 + (highRank - 6) * 0.02;
+    } else if (!isSuited && gap <= 1 && highRank >= 6) {
+      // Offsuit connectors (65o-T9o)
+      strength = 0.35 + (highRank - 6) * 0.03;
+    } else if (isSuited) {
+      // Other suited hands
+      strength = 0.30 + highRank * 0.01;
+    } else {
+      // Weak/trash hands — in HU, even the worst hand has ~30% equity
+      strength = 0.20 + highRank * 0.005;
+    }
+
+    // Position bonus: in position can play wider range profitably
+    if (isInPosition) {
+      strength += 0.05;
+    }
+
+    return Math.min(1.0, Math.max(0.0, strength));
+  }
+
+  /**
+   * Calculate equity from current hand rank (postflop)
    */
   private calculateCurrentEquity(handRank: number, phase: GameState['phase']): number {
-    // Hand rank to equity mapping (rough estimates based on poker theory)
-    const equityMap = {
-      10: 1.0,   // Royal Flush - unbeatable
+    const equityMap: Record<number, number> = {
+      10: 1.0,   // Royal Flush
       9: 0.98,   // Straight Flush
       8: 0.95,   // Four of a Kind
       7: 0.90,   // Full House
@@ -132,19 +235,18 @@ export class PokerAI {
       5: 0.75,   // Straight
       4: 0.65,   // Three of a Kind
       3: 0.55,   // Two Pair
-      2: 0.45,   // Pair
-      1: 0.35    // High Card
+      2: 0.48,   // Pair (strong in HU)
+      1: 0.25    // High Card (weak — likely losing)
     };
 
-    let baseEquity = equityMap[handRank as keyof typeof equityMap] || 0.35;
+    const baseEquity = equityMap[handRank] || 0.35;
 
-    // Adjust based on phase (later streets have more certainty)
     const phaseMultipliers: Record<GameState['phase'], number> = {
-      'waiting': 0.5,  // No game in progress
-      'preflop': 0.6,  // Much uncertainty
-      'flop': 0.8,     // Some uncertainty
-      'turn': 0.9,     // Less uncertainty
-      'river': 1.0,    // Full certainty
+      'waiting': 0.5,
+      'preflop': 0.6,  // Not used (preflop uses hand chart)
+      'flop': 0.85,
+      'turn': 0.9,
+      'river': 1.0,
       'showdown': 1.0
     };
 
@@ -152,21 +254,21 @@ export class PokerAI {
   }
 
   /**
-   * Calculate equity from hand improvement potential
+   * Calculate equity from hand improvement potential (draws)
    */
-  private calculateImprovementEquity(holeCards: Card[], communityCards: Card[], phase: GameState['phase'], remainingCards: number): number {
-    if (remainingCards === 0) return 0; // No more cards to come
+  private calculateImprovementEquity(
+    holeCards: Card[],
+    communityCards: Card[],
+    phase: GameState['phase'],
+    remainingCards: number
+  ): number {
+    if (remainingCards === 0) return 0;
 
     let improvementEquity = 0;
-
-    // Calculate outs and potential improvements
-    const allCards = [...holeCards, ...communityCards];
-    const availableCards = phase === 'preflop' ? holeCards : allCards;
 
     // Flush draw potential
     const flushOuts = this.calculateFlushOuts(holeCards, communityCards, phase);
     if (flushOuts > 0) {
-      // Flush equity increases with more outs
       improvementEquity += Math.min(0.25, flushOuts / 47 * 0.3);
     }
 
@@ -176,52 +278,36 @@ export class PokerAI {
       improvementEquity += Math.min(0.20, straightOuts / 47 * 0.25);
     }
 
-    // Overcard potential (especially preflop)
+    // Overcard potential (preflop)
     if (phase === 'preflop') {
       const overcardEquity = this.calculateOvercardEquity(holeCards);
       improvementEquity += overcardEquity * 0.15;
     }
 
-    // Pair improvement potential
+    // Pair improvement potential (flop/turn)
     if (phase === 'flop' || phase === 'turn') {
       const pairOuts = this.calculatePairOuts(holeCards, communityCards);
       improvementEquity += Math.min(0.15, pairOuts / 47 * 0.2);
     }
 
-    // Scale based on remaining cards (more cards = more improvement potential)
-    const cardMultiplier = remainingCards / 5; // Max 5 cards in Texas Hold'em
+    // Scale by remaining cards
+    const cardMultiplier = remainingCards / 5;
     improvementEquity *= cardMultiplier;
 
-    return Math.min(0.4, improvementEquity); // Cap improvement equity
+    return Math.min(0.4, improvementEquity);
   }
 
-  /**
-   * Combine current equity with improvement equity
-   */
   private combineEquity(currentEquity: number, improvementEquity: number, remainingCards: number): number {
     if (remainingCards === 0) return currentEquity;
-
-    // Weight current equity vs improvement equity based on cards remaining
-    const currentWeight = (5 - remainingCards) / 5;
-    const improvementWeight = remainingCards / 5;
-
-    return (currentEquity * currentWeight) + (improvementEquity * improvementWeight);
+    // Additive: made hand equity + draw potential (don't penalize made hands)
+    return Math.min(1.0, currentEquity + improvementEquity);
   }
 
-  /**
-   * Calculate flush draw outs
-   */
+  // ─── DRAW CALCULATIONS ─────────────────────────────────────────
+
   private calculateFlushOuts(holeCards: Card[], communityCards: Card[], phase: GameState['phase']): number {
     if (phase === 'preflop') {
-      const suitCounts = holeCards.reduce((counts, card) => {
-        counts[card.suit] = (counts[card.suit] || 0) + 1;
-        return counts;
-      }, {} as Record<string, number>);
-
-      // Suited cards have flush potential
-      const suitedCount = Math.max(...Object.values(suitCounts));
-      if (suitedCount === 2) return 11; // Backdoor flush draw
-      return 0;
+      return holeCards[0].suit === holeCards[1].suit ? 11 : 0;
     }
 
     const allCards = [...holeCards, ...communityCards];
@@ -230,65 +316,40 @@ export class PokerAI {
       return counts;
     }, {} as Record<string, number>);
 
-    // Find suit with 4+ cards (flush draw)
-    const flushSuit = Object.entries(suitCounts).find(([_, count]) => count >= 4)?.[0];
-    if (flushSuit) {
-      const suitCards = allCards.filter(card => card.suit === flushSuit).length;
-      if (suitCards === 4) {
-        // Flush draw - 9 outs (13 cards in suit - 4 on board - 2 in hand)
-        return 9;
-      }
-    }
-
-    return 0;
+    const maxSuit = Math.max(...Object.values(suitCounts));
+    return maxSuit === 4 ? 9 : 0;
   }
 
-  /**
-   * Calculate straight draw outs
-   */
   private calculateStraightOuts(holeCards: Card[], communityCards: Card[], phase: GameState['phase']): number {
     if (phase === 'preflop') {
-      const [card1, card2] = holeCards;
-      const ranks = [card1.rank, card2.rank].sort((a, b) => a - b);
-
-      // Connected cards have straight potential
-      if (Math.abs(ranks[0] - ranks[1]) <= 4) {
-        return ranks[0] === ranks[1] ? 6 : 8; // Pocket pair vs connectors
-      }
-      return 0;
+      const gap = Math.abs(holeCards[0].rank - holeCards[1].rank);
+      if (holeCards[0].rank === holeCards[1].rank) return 6;
+      return gap <= 4 ? 8 : 0;
     }
 
     const allCards = [...holeCards, ...communityCards];
     const ranks = Array.from(new Set(allCards.map(c => c.rank))).sort((a, b) => a - b);
-
     let maxOuts = 0;
 
-    // Check for open-ended straight draws
     for (let i = 0; i < ranks.length - 3; i++) {
-      const sequence = ranks.slice(i, 4);
-      if (sequence.every((rank, idx) => idx === 0 || rank === sequence[idx - 1] + 1)) {
-        // Check if we have cards in this sequence
-        const sequenceCards = allCards.filter(card => sequence.includes(card.rank));
-        if (sequenceCards.length >= 3) {
-          // Open-ended straight draw = 8 outs
+      const seq = ranks.slice(i, 4);
+      if (seq.every((r, idx) => idx === 0 || r === seq[idx - 1] + 1)) {
+        if (allCards.filter(c => seq.includes(c.rank)).length >= 3) {
           maxOuts = Math.max(maxOuts, 8);
         }
       }
     }
 
-    // Check for gutshot straight draws
-    for (let i = 0; i < ranks.length - 3; i++) {
-      const sequence = ranks.slice(i, 4);
-      // Look for sequences with one gap
-      for (let gap = 0; gap < 3; gap++) {
-        const testSequence = [...sequence];
-        testSequence.splice(gap, 1); // Remove one card to create gap
-        if (testSequence.length === 3 &&
-            testSequence.every((rank, idx) => idx === 0 || rank === testSequence[idx - 1] + 1)) {
-          const sequenceCards = allCards.filter(card => testSequence.includes(card.rank));
-          if (sequenceCards.length >= 3) {
-            // Gutshot = 4 outs
-            maxOuts = Math.max(maxOuts, 4);
+    if (maxOuts === 0) {
+      for (let i = 0; i < ranks.length - 3; i++) {
+        const seq = ranks.slice(i, 4);
+        for (let gap = 0; gap < 3; gap++) {
+          const test = [...seq];
+          test.splice(gap, 1);
+          if (test.length === 3 && test.every((r, idx) => idx === 0 || r === test[idx - 1] + 1)) {
+            if (allCards.filter(c => test.includes(c.rank)).length >= 3) {
+              maxOuts = Math.max(maxOuts, 4);
+            }
           }
         }
       }
@@ -297,342 +358,446 @@ export class PokerAI {
     return maxOuts;
   }
 
-  /**
-   * Calculate overcard equity (preflop)
-   */
   private calculateOvercardEquity(holeCards: Card[]): number {
-    const [card1, card2] = holeCards;
-    const highCard = Math.max(card1.rank, card2.rank);
-
-    // Higher cards have more equity against unknown hands
-    if (highCard >= 12) return 0.8; // Face cards or better
-    if (highCard >= 10) return 0.6; // High cards
-    if (highCard >= 8) return 0.4;  // Medium cards
-    return 0.2; // Low cards
+    const highCard = Math.max(holeCards[0].rank, holeCards[1].rank);
+    if (highCard >= 12) return 0.8;
+    if (highCard >= 10) return 0.6;
+    if (highCard >= 8) return 0.4;
+    return 0.2;
   }
 
-  /**
-   * Calculate pair improvement outs
-   */
   private calculatePairOuts(holeCards: Card[], communityCards: Card[]): number {
-    const allCards = [...holeCards, ...communityCards];
-    const ranks = allCards.map(c => c.rank);
-    const uniqueRanks = Array.from(new Set(ranks));
-
+    const allRanks = [...holeCards, ...communityCards].map(c => c.rank);
     let pairOuts = 0;
-
-    // Count overcards that could pair our hole cards
     holeCards.forEach(card => {
-      const remainingCardsOfRank = 4 - ranks.filter(r => r === card.rank).length;
-      pairOuts += remainingCardsOfRank;
+      pairOuts += 4 - allRanks.filter(r => r === card.rank).length;
     });
-
     return pairOuts;
   }
 
-  /**
-   * Calculate preflop hand potential
-   */
-  private calculatePreflopPotential(holeCards: Card[]): number {
-    const [card1, card2] = holeCards;
-    const isSuited = card1.suit === card2.suit;
-    const isPair = card1.rank === card2.rank;
-    const highCard = Math.max(card1.rank, card2.rank);
-    const lowCard = Math.min(card1.rank, card2.rank);
-
-    // Premium hands
-    if (isPair && highCard >= 11) return 1.5; // Pocket Jacks or better
-    if (isPair && highCard >= 8) return 1.3; // Pocket 8s-10s
-    if (highCard === 14 && lowCard >= 10) return 1.4; // Ace-high with good kicker
-    if (isSuited && highCard >= 12 && lowCard >= 10) return 1.3; // Suited connectors
-
-    // Good hands
-    if (isPair) return 1.1; // Any pocket pair
-    if (isSuited && Math.abs(highCard - lowCard) <= 4) return 1.2; // Suited connectors/gappers
-    if (highCard >= 12) return 1.0; // High cards
-
-    // Medium hands
-    if (isSuited) return 0.9; // Any suited
-    if (Math.abs(highCard - lowCard) <= 4) return 0.8; // Connectors
-
-    // Weak hands
-    return 0.6;
-  }
+  // ─── DECISION ENGINE ───────────────────────────────────────────
 
   /**
-   * Calculate postflop improvement potential
-   */
-  private calculatePostflopPotential(holeCards: Card[], communityCards: Card[]): number {
-    const allCards = [...holeCards, ...communityCards];
-    const currentHand = evaluateHand(holeCards, communityCards);
-
-    // Count outs (cards that could improve our hand significantly)
-    let outs = 0;
-
-    // Flush draws
-    const suitCounts = allCards.reduce((counts, card) => {
-      counts[card.suit] = (counts[card.suit] || 0) + 1;
-      return counts;
-    }, {} as Record<string, number>);
-
-    const flushSuit = Object.entries(suitCounts).find(([_, count]) => count >= 4)?.[0];
-    if (flushSuit && holeCards.some(card => card.suit === flushSuit)) {
-      outs += 9; // Flush draw
-    }
-
-    // Straight draws
-    const ranks = allCards.map(c => c.rank).sort((a, b) => b - a);
-    const uniqueRanks = Array.from(new Set(ranks));
-
-    // Check for open-ended straight draws
-    for (let i = 0; i < uniqueRanks.length - 3; i++) {
-      const sequence = uniqueRanks.slice(i, 4);
-      if (sequence.every((rank, idx) => idx === 0 || rank === sequence[idx - 1] - 1)) {
-        if (holeCards.some(card => sequence.includes(card.rank))) {
-          outs += 8; // Open-ended straight draw
-          break;
-        }
-      }
-    }
-
-    // Calculate potential based on outs
-    const improvementPotential = Math.min(1.0, outs / 20); // 20 outs = very strong draw
-
-    return 0.8 + improvementPotential * 0.4; // Base 0.8, up to 1.2
-  }
-
-  /**
-   * Calculate pot odds (ratio of bet to pot)
-   */
-  private calculatePotOdds(player: Player, currentBet: number, pot: number): number {
-    const callAmount = Math.max(0, currentBet - player.currentBet);
-    if (callAmount === 0) return 0; // No bet to call
-
-    return callAmount / (pot + callAmount);
-  }
-
-  /**
-   * Make the final decision based on hand strength, pot odds, and personality
-   * Key strategy: Only fold if opponent raises, otherwise check/call to see more cards
+   * Core decision logic — fold, call/check, or raise
    */
   private decideAction(
     handStrength: number,
     potOdds: number,
     callAmount: number,
     playerChips: number,
+    pot: number,
     phase: GameState['phase'],
-    activePlayersCount: number
+    activePlayersCount: number,
+    holeCards: Card[],
+    communityCards: Card[],
+    opponentChips?: number,
+    isInPosition?: boolean,
+    wasAggressor?: boolean
   ): AIDecisionResult {
-    // Adjust thresholds based on personality
-    const thresholds = this.getPersonalityThresholds();
+    const profile = this.profile;
 
-    // If we have no chips or can't call, fold
+    // Can't afford to call
     if (callAmount > playerChips) {
       return { action: 'fold', reasoning: 'Insufficient chips to call' };
     }
 
-    // Key strategy: If no bet to call (check opportunity), always continue to see more cards
+    // ── ALL-IN / LARGE BET DEFENSE ──
+    // When facing a large bet (≥50% of stack), use relaxed thresholds
+    const isLargeBet = callAmount >= playerChips * 0.5 && callAmount > 0;
+    if (isLargeBet) {
+      return this.handleLargeBet(handStrength, callAmount, playerChips, pot, phase);
+    }
+
+    // ── NO BET TO CALL (CHECK OPPORTUNITY) ──
     if (callAmount === 0) {
-      // No bet - we can check for free
-      if (handStrength >= thresholds.raise) {
-        // Strong hand - raise to build pot
-        const raiseAmount = this.calculateRaiseAmount(callAmount, playerChips, handStrength, phase);
-        return {
-          action: 'raise',
-          amount: raiseAmount,
-          reasoning: `Strong hand (${(handStrength * 100).toFixed(0)}% win probability) - raising to build pot`
-        };
-      } else {
-        // Medium/weak hand - check to see next card for free
-        return {
-          action: 'call', // This is actually a check when callAmount = 0
-          reasoning: `Checking to see next card (${(handStrength * 100).toFixed(0)}% win probability)`
-        };
-      }
+      return this.handleCheckOpportunity(
+        handStrength, playerChips, pot, phase,
+        holeCards, communityCards, opponentChips, isInPosition, wasAggressor
+      );
     }
 
-    // There is a bet to call - more careful decision making
-    // Check if it's profitable to call (hand strength vs pot odds)
-    const shouldCall = handStrength >= potOdds;
-
-    console.log('DEBUG decideAction: callAmount =', callAmount, 'phase =', phase, 'handStrength =', handStrength.toFixed(3));
-
-    // Pre-flop specific logic: Be more willing to see the flop
-    // Only fold truly terrible hands with large bets to call
+    // ── PREFLOP WITH BET TO CALL ──
     if (phase === 'preflop') {
-      // Pre-flop: almost always see the flop unless call is very expensive
-      const callPercentage = callAmount / playerChips;
-      
-      console.log('DEBUG preflop branch: callPercentage =', callPercentage.toFixed(3), 'thresholds.raise =', thresholds.raise);
-      
-      if (handStrength >= thresholds.raise) {
-        console.log('DEBUG: Taking RAISE branch (strong preflop hand)');
-        // Strong preflop hand - raise
-        const raiseAmount = this.calculateRaiseAmount(callAmount, playerChips, handStrength, phase);
-        return {
-          action: 'raise',
-          amount: raiseAmount,
-          reasoning: `Strong preflop hand (${(handStrength * 100).toFixed(0)}% equity) - raising`
-        };
-      } else if (callPercentage > 0.3 && handStrength < 0.15) {
-        console.log('DEBUG: Taking FOLD branch (expensive call + weak hand)');
-        // Only fold preflop if call is expensive (>30% of chips) AND hand is truly terrible
-        return { action: 'fold', reasoning: `Weak preflop hand and expensive call (${(callPercentage * 100).toFixed(0)}% of chips) - folding` };
-      } else {
-        console.log('DEBUG: Taking CALL branch (see the flop)');
-        // Call to see the flop
-        return {
-          action: 'call',
-          reasoning: `Preflop - calling ${callAmount} to see the flop (${(handStrength * 100).toFixed(0)}% equity)`
-        };
-      }
+      return this.handlePreflopBet(handStrength, callAmount, playerChips, pot, opponentChips);
     }
 
-    // Post-flop decision logic
-    if (handStrength >= thresholds.raise) {
-      // Strong hand - raise or call
-      if (this.shouldRaise(handStrength, callAmount, playerChips, phase)) {
-        const raiseAmount = this.calculateRaiseAmount(callAmount, playerChips, handStrength, phase);
-        return {
-          action: 'raise',
-          amount: raiseAmount,
-          reasoning: `Strong hand (${(handStrength * 100).toFixed(0)}% win probability) - raising`
-        };
-      } else {
-        return {
-          action: 'call',
-          reasoning: `Strong hand (${(handStrength * 100).toFixed(0)}% win probability) - calling`
-        };
-      }
-    } else if (handStrength >= thresholds.call) {
-      // Medium hand - generally call to see more cards
+    // ── POSTFLOP WITH BET TO CALL ──
+    return this.handlePostflopBet(
+      handStrength, potOdds, callAmount, playerChips, pot, phase,
+      holeCards, communityCards, opponentChips
+    );
+  }
+
+  /**
+   * Handle facing a large bet or all-in — use relaxed thresholds to avoid
+   * folding decent hands to aggression.
+   */
+  private handleLargeBet(
+    handStrength: number,
+    callAmount: number,
+    playerChips: number,
+    pot: number,
+    phase: GameState['phase']
+  ): AIDecisionResult {
+    const potOdds = callAmount / (pot + callAmount);
+
+    console.log('DEBUG: Large bet defense — handStrength:', handStrength.toFixed(3),
+      'potOdds:', potOdds.toFixed(3), 'callAmount:', callAmount);
+
+    // Strong hand: always call (or raise if we can)
+    if (handStrength >= this.profile.raiseThreshold) {
       return {
         action: 'call',
-        reasoning: `Decent hand (${(handStrength * 100).toFixed(0)}% win probability) - calling to see more cards`
+        reasoning: `Strong hand (${(handStrength * 100).toFixed(0)}%) — calling large bet`
       };
-    } else {
-      // Weak hand - only fold if pot odds are very unfavorable
-      // Otherwise call to see if hand improves
-      console.log('DEBUG: Weak hand branch - potOdds =', potOdds.toFixed(3), 'handStrength =', handStrength.toFixed(3));
-      if (potOdds > 0.4 || handStrength > 0.1) {
-        console.log('DEBUG: Taking CALL branch (pot odds or some chance)');
-        // Good pot odds or some chance of improvement
+    }
+
+    // Decent hand (pair or better): call if hand strength > 0.35
+    if (handStrength >= 0.35) {
+      return {
+        action: 'call',
+        reasoning: `Decent hand (${(handStrength * 100).toFixed(0)}%) — calling large bet, too strong to fold`
+      };
+    }
+
+    // Marginal hand with good pot odds: call
+    if (handStrength >= 0.20 && potOdds < 0.35) {
+      return {
+        action: 'call',
+        reasoning: `Marginal hand but good pot odds (${(potOdds * 100).toFixed(0)}%) — calling`
+      };
+    }
+
+    // Truly weak hand facing all-in: fold
+    return {
+      action: 'fold',
+      reasoning: `Weak hand (${(handStrength * 100).toFixed(0)}%) facing large bet — folding`
+    };
+  }
+
+  /**
+   * Handle check opportunity — decide whether to bet/raise or check
+   */
+  private handleCheckOpportunity(
+    handStrength: number,
+    playerChips: number,
+    pot: number,
+    phase: GameState['phase'],
+    holeCards: Card[],
+    communityCards: Card[],
+    opponentChips?: number,
+    isInPosition?: boolean,
+    wasAggressor?: boolean
+  ): AIDecisionResult {
+    // Strong hand: raise to build pot
+    if (handStrength >= this.profile.raiseThreshold) {
+      const raiseAmount = this.calculateRaiseAmount(0, playerChips, handStrength, phase, pot, opponentChips);
+      return {
+        action: 'raise',
+        amount: raiseAmount,
+        reasoning: `Strong hand (${(handStrength * 100).toFixed(0)}%) — raising to build pot`
+      };
+    }
+
+    // Continuation bet: only c-bet on flop if we were the preflop aggressor
+    if (phase === 'flop' && wasAggressor && Math.random() < this.profile.cBetFrequency) {
+      const cBetAmount = this.calculateRaiseAmount(0, playerChips, 0.5, phase, pot, opponentChips);
+      return {
+        action: 'raise',
+        amount: cBetAmount,
+        reasoning: `Continuation bet on flop (${(handStrength * 100).toFixed(0)}% equity)`
+      };
+    }
+
+    // Semi-bluff: raise with draws on flop/turn
+    if ((phase === 'flop' || phase === 'turn') && handStrength < this.profile.callThreshold) {
+      const improvementEquity = this.calculateImprovementEquity(
+        holeCards, communityCards, phase, phase === 'flop' ? 2 : 1
+      );
+      if (improvementEquity > 0.15 && Math.random() < 0.6) {
+        const raiseAmount = this.calculateRaiseAmount(0, playerChips, 0.45, phase, pot, opponentChips);
         return {
-          action: 'call',
-          reasoning: `Weak hand (${(handStrength * 100).toFixed(0)}% win probability) but good pot odds - calling to see more cards`
+          action: 'raise',
+          amount: raiseAmount,
+          reasoning: `Semi-bluff with draw potential (${(improvementEquity * 100).toFixed(0)}% improvement equity)`
         };
-      } else {
-        console.log('DEBUG: Taking FOLD branch (very weak + poor pot odds)');
-        // Very unfavorable situation - fold
-        return { action: 'fold', reasoning: 'Very weak hand and poor pot odds - folding' };
       }
     }
-  }
 
-  /**
-   * Get decision thresholds based on AI personality
-   */
-  private getPersonalityThresholds() {
-    switch (this.personality) {
-      case 'aggressive':
-        return { raise: 0.6, call: 0.3, fold: 0.1 };
-      case 'conservative':
-        return { raise: 0.8, call: 0.5, fold: 0.2 };
-      case 'balanced':
-      default:
-        return { raise: 0.7, call: 0.4, fold: 0.15 };
+    // Pure bluff: occasionally raise with weak hands
+    if (handStrength < 0.25 && Math.random() < this.profile.bluffFrequency) {
+      const bluffAmount = this.calculateRaiseAmount(0, playerChips, 0.4, phase, pot, opponentChips);
+      return {
+        action: 'raise',
+        amount: bluffAmount,
+        reasoning: `Bluff raise (${(handStrength * 100).toFixed(0)}% equity — representing strength)`
+      };
     }
+
+    // Check-raise with strong hands out of position
+    if (isInPosition === false && handStrength >= this.profile.callThreshold &&
+        handStrength < this.profile.raiseThreshold && Math.random() < 0.15) {
+      // Check to potentially check-raise if opponent bets
+      return {
+        action: 'call', // check
+        reasoning: `Checking with decent hand OOP (${(handStrength * 100).toFixed(0)}%) — trap potential`
+      };
+    }
+
+    // Default: check
+    return {
+      action: 'call',
+      reasoning: `Checking (${(handStrength * 100).toFixed(0)}% equity)`
+    };
   }
 
   /**
-   * Decide whether to raise instead of just calling
+   * Handle preflop bet — use starting hand chart ranges
    */
-  private shouldRaise(handStrength: number, callAmount: number, playerChips: number, phase: GameState['phase']): boolean {
-    // Don't raise if we don't have enough chips
-    if (callAmount * 3 > playerChips) return false;
+  private handlePreflopBet(
+    handStrength: number,
+    callAmount: number,
+    playerChips: number,
+    pot: number,
+    opponentChips?: number
+  ): AIDecisionResult {
+    const callPercentage = callAmount / playerChips;
 
-    // More likely to raise in early positions/early phases
-    const raiseProbability = handStrength * (phase === 'preflop' ? 1.2 : 0.8);
+    console.log('DEBUG preflop: handStrength:', handStrength.toFixed(3),
+      'callPercentage:', callPercentage.toFixed(3));
 
-    // Aggressive AI raises more often
-    if (this.personality === 'aggressive') {
-      return Math.random() < Math.min(0.8, raiseProbability + 0.2);
-    } else if (this.personality === 'conservative') {
-      return Math.random() < Math.max(0.1, raiseProbability - 0.2);
+    // Premium hands: 3-bet / re-raise
+    if (handStrength >= 0.85) {
+      const raiseAmount = this.calculateRaiseAmount(callAmount, playerChips, handStrength, 'preflop', pot, opponentChips);
+      return {
+        action: 'raise',
+        amount: raiseAmount,
+        reasoning: `Premium preflop hand (${(handStrength * 100).toFixed(0)}%) — raising`
+      };
+    }
+
+    // Strong hands: raise or call depending on position/sizing
+    if (handStrength >= 0.65) {
+      // Raise with top of range, call with bottom
+      if (handStrength >= this.profile.raiseThreshold || Math.random() < 0.5) {
+        const raiseAmount = this.calculateRaiseAmount(callAmount, playerChips, handStrength, 'preflop', pot, opponentChips);
+        return {
+          action: 'raise',
+          amount: raiseAmount,
+          reasoning: `Strong preflop hand (${(handStrength * 100).toFixed(0)}%) — raising`
+        };
+      }
+      return {
+        action: 'call',
+        reasoning: `Strong preflop hand (${(handStrength * 100).toFixed(0)}%) — calling`
+      };
+    }
+
+    // Playable hands: call if price is right
+    if (handStrength >= 0.40) {
+      if (callPercentage > 0.3) {
+        return {
+          action: 'fold',
+          reasoning: `Marginal hand (${(handStrength * 100).toFixed(0)}%) — too expensive to call (${(callPercentage * 100).toFixed(0)}% of stack)`
+        };
+      }
+      return {
+        action: 'call',
+        reasoning: `Playable preflop hand (${(handStrength * 100).toFixed(0)}%) — calling to see flop`
+      };
+    }
+
+    // Weak hands: only call if very cheap (HU — wider calling range)
+    if (handStrength >= 0.20 && callPercentage < 0.15) {
+      return {
+        action: 'call',
+        reasoning: `Speculative hand (${(handStrength * 100).toFixed(0)}%) — cheap call to see flop`
+      };
+    }
+
+    // Trash: fold
+    return {
+      action: 'fold',
+      reasoning: `Weak preflop hand (${(handStrength * 100).toFixed(0)}%) — folding`
+    };
+  }
+
+  /**
+   * Handle postflop bet — standard pot odds + hand strength evaluation
+   */
+  private handlePostflopBet(
+    handStrength: number,
+    potOdds: number,
+    callAmount: number,
+    playerChips: number,
+    pot: number,
+    phase: GameState['phase'],
+    holeCards: Card[],
+    communityCards: Card[],
+    opponentChips?: number
+  ): AIDecisionResult {
+    const profile = this.profile;
+
+    // Strong hand: raise for value
+    if (handStrength >= profile.raiseThreshold) {
+      if (this.shouldRaise(handStrength, callAmount, playerChips, phase)) {
+        const raiseAmount = this.calculateRaiseAmount(callAmount, playerChips, handStrength, phase, pot, opponentChips);
+        return {
+          action: 'raise',
+          amount: raiseAmount,
+          reasoning: `Strong hand (${(handStrength * 100).toFixed(0)}%) — raising for value`
+        };
+      }
+      return {
+        action: 'call',
+        reasoning: `Strong hand (${(handStrength * 100).toFixed(0)}%) — calling`
+      };
+    }
+
+    // Medium hand: call to see more cards
+    if (handStrength >= profile.callThreshold) {
+      return {
+        action: 'call',
+        reasoning: `Decent hand (${(handStrength * 100).toFixed(0)}%) — calling`
+      };
+    }
+
+    // Weak hand with draw: semi-bluff raise sometimes
+    if (phase !== 'river') {
+      const improvementEquity = this.calculateImprovementEquity(
+        holeCards, communityCards, phase, phase === 'flop' ? 2 : 1
+      );
+      if (improvementEquity > 0.15) {
+        // Good draw — call or semi-bluff raise
+        if (Math.random() < 0.3) {
+          const raiseAmount = this.calculateRaiseAmount(callAmount, playerChips, 0.45, phase, pot, opponentChips);
+          return {
+            action: 'raise',
+            amount: raiseAmount,
+            reasoning: `Semi-bluff raise with draw (${(improvementEquity * 100).toFixed(0)}% improvement equity)`
+          };
+        }
+        return {
+          action: 'call',
+          reasoning: `Calling with draw potential (${(improvementEquity * 100).toFixed(0)}% improvement equity)`
+        };
+      }
+    }
+
+    // Weak hand: consider pot odds (stricter on river since no draws)
+    const oddsThreshold = phase === 'river' ? potOdds : potOdds * 0.8;
+    if (handStrength > oddsThreshold) {
+      return {
+        action: 'call',
+        reasoning: `Weak hand (${(handStrength * 100).toFixed(0)}%) but decent pot odds — calling`
+      };
+    }
+
+    // Very weak: fold
+    return {
+      action: 'fold',
+      reasoning: `Weak hand (${(handStrength * 100).toFixed(0)}%) with poor pot odds — folding`
+    };
+  }
+
+  // ─── BET SIZING ────────────────────────────────────────────────
+
+  /**
+   * Calculate raise amount using pot-relative sizing.
+   * Returns the raise INCREMENT (added on top of call amount), not the total bet.
+   */
+  private calculateRaiseAmount(
+    callAmount: number,
+    playerChips: number,
+    handStrength: number,
+    phase: GameState['phase'],
+    pot: number,
+    opponentChips?: number
+  ): number {
+    const effectiveStack = opponentChips !== undefined
+      ? Math.min(playerChips, opponentChips)
+      : playerChips;
+    const spr = pot > 0 ? effectiveStack / pot : 10;
+
+    let targetRaise: number;
+
+    if (phase === 'preflop') {
+      // Preflop sizing: 2.5-3x BB for opens, 3x for 3-bets
+      if (callAmount <= BIG_BLIND) {
+        // Opening raise: 2.5-3x BB
+        targetRaise = BIG_BLIND * (2.5 + handStrength * 0.5);
+      } else {
+        // 3-bet: ~3x the raise
+        targetRaise = callAmount * 3;
+      }
     } else {
-      return Math.random() < raiseProbability;
+      // Postflop sizing: pot-relative
+      const currentPot = pot + callAmount; // Pot after calling
+      let potFraction: number;
+
+      if (handStrength >= 0.7) {
+        // Value bet: 55-75% pot
+        potFraction = 0.55 + handStrength * 0.2;
+      } else if (handStrength >= 0.4) {
+        // Medium/semi-bluff: 40-55% pot
+        potFraction = 0.40 + (handStrength - 0.4) * 0.5;
+      } else {
+        // Bluff: 33-45% pot
+        potFraction = 0.33 + handStrength * 0.5;
+      }
+
+      targetRaise = currentPot * potFraction;
+
+      // Short-stack adjustment: if SPR < 2, just go all-in with decent hands
+      if (spr < 2 && handStrength >= 0.40) {
+        targetRaise = playerChips - callAmount; // All-in
+      }
     }
-  }
 
-  /**
-   * Calculate appropriate raise amount
-   */
-  private calculateRaiseAmount(callAmount: number, playerChips: number, handStrength: number, phase: GameState['phase']): number {
-    const minRaise = callAmount + 1;
-    const maxRaise = Math.min(playerChips - callAmount, callAmount * 4);
+    // Apply personality sizing multiplier
+    targetRaise *= this.profile.sizingMultiplier;
 
-    if (maxRaise <= minRaise) return minRaise;
+    // Round to $5 increments
+    let finalRaise = Math.ceil(targetRaise / 5) * 5;
 
-    // Stronger hands raise more
-    const raiseMultiplier = 1 + (handStrength * 2);
+    // Enforce minimum $5 raise
+    finalRaise = Math.max(5, finalRaise);
 
-    // Aggressive AI raises more
-    const personalityMultiplier = this.personality === 'aggressive' ? 1.5 :
-                                 this.personality === 'conservative' ? 0.7 : 1.0;
-
-    const targetRaise = callAmount * raiseMultiplier * personalityMultiplier;
-    let finalRaise = Math.max(minRaise, Math.min(maxRaise, targetRaise));
-
-    // Round to nearest $5 increment, same as human player
-    finalRaise = Math.ceil(finalRaise / 5) * 5;
-
-    // Ensure we still meet minimum raise requirements after rounding
-    finalRaise = Math.max(minRaise, finalRaise);
-
-    // If rounding made it exceed maxRaise, use maxRaise but still round down to $5
+    // Cap at available chips
+    const maxRaise = playerChips - callAmount;
     if (finalRaise > maxRaise) {
       finalRaise = Math.floor(maxRaise / 5) * 5;
-      // Ensure we still meet minimum requirements
-      finalRaise = Math.max(minRaise, finalRaise);
+      finalRaise = Math.max(5, finalRaise);
+    }
+
+    // If we can't even raise $5, just go all-in with what we have
+    if (finalRaise > maxRaise) {
+      finalRaise = maxRaise;
     }
 
     return finalRaise;
   }
 
   /**
-   * Check if this is a good bluffing opportunity
+   * Decide whether to raise instead of just calling (for strong hands)
    */
-  private isBluffOpportunity(phase: GameState['phase'], activePlayersCount: number): boolean {
-    // Only bluff in certain situations
-    if (phase === 'preflop' || activePlayersCount > 2) return false;
+  private shouldRaise(
+    handStrength: number,
+    callAmount: number,
+    playerChips: number,
+    phase: GameState['phase']
+  ): boolean {
+    // Don't raise if we barely have chips
+    if (callAmount * 2 > playerChips) return false;
 
-    // Aggressive AI bluffs more
-    const bluffChance = this.personality === 'aggressive' ? 0.3 :
-                       this.personality === 'conservative' ? 0.05 : 0.15;
+    const raiseProbability = handStrength * (phase === 'preflop' ? 1.2 : 0.9);
 
-    return Math.random() < bluffChance;
-  }
-
-  /**
-   * Decide whether to attempt a bluff
-   */
-  private shouldBluff(handStrength: number, phase: GameState['phase'], activePlayersCount: number, potOdds: number): boolean {
-    // Only bluff with very weak hands
-    if (handStrength > 0.2) return false;
-
-    // Only bluff in late game phases
-    if (phase === 'preflop' || phase === 'flop') return false;
-
-    // Only bluff in heads-up situations
-    if (activePlayersCount > 2) return false;
-
-    // Only bluff if pot odds are reasonable
-    if (potOdds > 0.3) return false;
-
-    // Aggressive AI bluffs more
-    const bluffChance = this.personality === 'aggressive' ? 0.2 : 0.05;
-
-    return Math.random() < bluffChance;
+    if (this.personality === 'aggressive') {
+      return Math.random() < Math.min(0.85, raiseProbability + 0.2);
+    } else if (this.personality === 'conservative') {
+      return Math.random() < Math.max(0.15, raiseProbability - 0.15);
+    }
+    return Math.random() < raiseProbability;
   }
 }
 
@@ -653,8 +818,11 @@ export const getAIDecision = (
   pot: number,
   gamePhase: GameState['phase'],
   activePlayersCount: number,
-  personality: AIPersonality = 'balanced'
+  personality: AIPersonality = 'balanced',
+  opponentChips?: number,
+  isInPosition?: boolean,
+  wasAggressor?: boolean
 ): AIDecisionResult => {
   const ai = createAI(personality);
-  return ai.makeDecision(player, communityCards, currentBet, pot, gamePhase, activePlayersCount);
+  return ai.makeDecision(player, communityCards, currentBet, pot, gamePhase, activePlayersCount, opponentChips, isInPosition, wasAggressor);
 };
