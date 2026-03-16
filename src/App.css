@@ -771,10 +771,16 @@
 
   .mobile-info-bar {
     display: flex;
+    grid-area: mobile-info;
   }
 
   .mobile-log-toggle {
     display: block;
+    grid-area: none;
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 100;
   }
 
   /* Single-column grid — same areas as mobile but player areas stay vertical */
@@ -788,6 +794,7 @@
       "human-player"
       "actions";
     gap: 4px;
+    position: relative;
   }
 
   .top-row-container {
@@ -800,6 +807,12 @@
     width: 100%;
     height: auto;
     max-height: none;
+  }
+
+  /* Reset human player grid-column for single-column layout */
+  .center-section .human-player-section {
+    grid-column: auto;
+    margin-top: 0;
   }
 
   /* Simplified cards row: pot + community cards only (no deck, no burn) */
