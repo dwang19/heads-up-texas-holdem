@@ -556,3 +556,26 @@
     }
   }
 }
+
+/* Mobile Landscape — same card sizes as 480px */
+@media (max-width: 900px) and (orientation: landscape) and (max-height: 500px) {
+  :root {
+    --card-large-w: 55px;
+    --card-large-h: 77px;
+    --card-large-font: 12px;
+    --card-medium-w: 44px;
+    --card-medium-h: 62px;
+    --card-medium-font: 10px;
+    --card-small-w: 36px;
+    --card-small-h: 50px;
+    --card-small-font: 8px;
+  }
+
+  .card__front {
+    padding: 3px;
+  }
+
+  .card__suit-large {
+    font-size: 1.4em;
+  }
+}

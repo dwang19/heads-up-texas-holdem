@@ -167,6 +167,10 @@
   white-space: nowrap;
 }
 
+/* Desktop: show full label, hide abbreviation */
+.badge-short { display: none; }
+.badge-full { display: inline; }
+
 .player-chips {
   display: flex;
   flex-direction: column;
@@ -260,23 +264,27 @@
   }
 
   .player-name {
-    font-size: 13px;
+    font-size: 15px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 80px;
+    max-width: 100px;
   }
 
   .folded-text {
     font-size: 11px;
   }
 
+  /* Mobile: show abbreviation, hide full label */
+  .badge-full { display: none; }
+  .badge-short { display: inline; }
+
   .position-indicators {
     gap: 3px;
   }
 
   .position-badge {
-    font-size: 7px;
+    font-size: 9px;
     padding: 2px 5px;
     border-radius: 5px;
   }
@@ -345,8 +353,8 @@
   }
 
   .player-name {
-    font-size: 12px;
-    max-width: 60px;
+    font-size: 13px;
+    max-width: 80px;
   }
 
   .chip-stack {
@@ -364,5 +372,74 @@
 
   .cards-row {
     gap: 3px;
+  }
+}
+
+/* Mobile Landscape — vertical column layout per player */
+@media (max-width: 900px) and (orientation: landscape) and (max-height: 500px) {
+  .player-area {
+    flex-direction: column;
+    padding: 4px 6px;
+    gap: 2px;
+    min-width: unset;
+    max-width: 100%;
+    width: 100%;
+    border-radius: 8px;
+  }
+
+  .player-area.current-player {
+    transform: none;
+  }
+
+  .player-header {
+    margin-bottom: 0;
+  }
+
+  .player-name-section {
+    flex-direction: column;
+    gap: 2px;
+    align-items: center;
+    margin-bottom: 0;
+  }
+
+  .player-name {
+    font-size: 11px;
+    max-width: 80px;
+  }
+
+  .position-badge {
+    font-size: 8px;
+    padding: 1px 4px;
+  }
+
+  .player-chips {
+    margin-bottom: 0;
+    gap: 2px;
+  }
+
+  .chip-stack {
+    padding: 2px 6px;
+    min-width: 50px;
+    gap: 3px;
+  }
+
+  .chip-amount {
+    font-size: 11px;
+  }
+
+  .chip-icon {
+    font-size: 11px;
+  }
+
+  .player-cards {
+    min-height: unset;
+  }
+
+  .cards-row {
+    gap: 3px;
+  }
+
+  .turn-indicator {
+    display: none;
   }
 }

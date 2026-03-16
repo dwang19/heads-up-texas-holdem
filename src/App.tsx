@@ -62,6 +62,8 @@ function App() {
   const [communityCards, setCommunityCards] = useState<CardType[]>([]);
   const [burnedCards, setBurnedCards] = useState<CardType[]>([]);
   const [pot, setPot] = useState<number>(0);
+  const [potDelta, setPotDelta] = useState<number | null>(null);
+  const prevPotRef = useRef<number>(0);
   const [currentBet, setCurrentBet] = useState<number>(0);
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState<number>(-1);
   const [gamePhase, setGamePhase] = useState<'waiting' | 'preflop' | 'flop' | 'turn' | 'river' | 'showdown'>('waiting');
@@ -114,13 +116,24 @@ function App() {
     }
   }, [gameLog]);
 
+  // Track pot changes and show "+$X" delta animation
+  useEffect(() => {
+    if (pot > prevPotRef.current) {
+      setPotDelta(pot - prevPotRef.current);
+      const timer = setTimeout(() => setPotDelta(null), 1800);
+      prevPotRef.current = pot;
+      return () => clearTimeout(timer);
+    }
+    prevPotRef.current = pot;
+  }, [pot]);
+
   const lastOuterRef = useRef({ w: window.outerWidth, h: window.outerHeight });
 
   const applyScale = useCallback(() => {
     const el = scalerRef.current;
     if (!el) return;
-    // On mobile, let responsive CSS handle the layout instead of zoom scaling
-    if (window.innerWidth <= 768) {
+    // On mobile (portrait or landscape), let responsive CSS handle the layout instead of zoom scaling
+    if (window.innerWidth <= 768 || (window.innerHeight <= 500 && window.innerWidth <= 900)) {
       el.style.removeProperty('zoom');
       return;
     }
@@ -1694,12 +1707,16 @@ function App() {
             {/* Cards Row: Pot, Community Cards, Deck, and Burn Cards - All Same Height */}
             <div className="cards-row-container">
               {/* Mobile Pot Indicator - inline with community cards on mobile */}
-              <div className="mobile-pot-indicator">Pot: ${pot}</div>
+              <div className="mobile-pot-indicator">
+                Pot: ${pot}
+                {potDelta && <span className="pot-delta">+${potDelta}</span>}
+              </div>
 
               {/* Pot Display - Left of Community Cards */}
               <div className="pot-display">
                 <h3>Betting Pot</h3>
                 <div className="pot-amount">${pot}</div>
+                {potDelta && <div className="pot-delta">+${potDelta}</div>}
               </div>
 
               {/* Community Cards */}

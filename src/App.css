@@ -466,6 +466,27 @@
   text-align: center;
 }
 
+/* Pot delta animation — "+$X" appears below pot amount when pot increases */
+.pot-delta {
+  display: block;
+  text-align: center;
+  margin-top: 4px;
+  color: #00e676;
+  font-size: 22px;
+  font-weight: 700;
+  text-shadow: 0 1px 6px rgba(0, 230, 118, 0.6), 0 2px 10px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  animation: potDeltaFloat 1.8s ease-out forwards;
+}
+
+@keyframes potDeltaFloat {
+  0%   { opacity: 0; transform: scale(0.6); }
+  12%  { opacity: 1; transform: scale(1.15); }
+  25%  { opacity: 1; transform: scale(1); }
+  85%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1) translateY(-8px); }
+}
+
 .pot-info {
   display: flex;
   flex-direction: column;
@@ -679,6 +700,36 @@
 .mobile-pot-indicator,
 .mobile-log-toggle {
   display: none;
+}
+
+/* ============================================
+   NARROW DESKTOP / TABLET (769px – 1024px)
+   Progressively simplify: hide burn cards, shrink pot & deck
+   ============================================ */
+@media (max-width: 1024px) and (min-width: 769px) {
+  :root {
+    --pot-width: 180px;
+    --pot-height: 180px;
+    --deck-width: 100px;
+    --burned-cards-width: 0px;
+    --community-cards-min-width: 400px;
+    --community-cards-height: 180px;
+    --font-size-pot: 36px;
+    --game-info-width: 200px;
+    --game-log-width: 300px;
+    --card-large-w: 80px;
+    --card-large-h: 112px;
+    --card-large-font: 16px;
+  }
+
+  .burned-cards {
+    display: none;
+  }
+
+  .cards-row-container {
+    grid-template-columns: var(--pot-width) minmax(var(--community-cards-min-width), 1fr) var(--deck-width);
+    grid-template-areas: "pot community-cards deck";
+  }
 }
 
 /* ============================================
@@ -925,6 +976,16 @@
     font-weight: bold;
     padding: 2px 0;
     text-shadow: 0 1px 4px rgba(255, 215, 0, 0.5);
+    position: relative;
+  }
+
+  .mobile-pot-indicator .pot-delta {
+    position: relative;
+    display: inline;
+    font-size: 14px;
+    margin-left: 6px;
+    margin-top: 0;
+    animation: potDeltaFloat 1.8s ease-out forwards;
   }
 
   .mobile-log-toggle {
@@ -1136,6 +1197,228 @@
 
   .phase-description {
     font-size: 13px;
+  }
+}
+
+/* ============================================
+   MOBILE LANDSCAPE — Side-by-Side Layout
+   Targets phones in landscape: narrow height + orientation check
+   ============================================ */
+@media (max-width: 900px) and (orientation: landscape) and (max-height: 500px) {
+  :root {
+    --font-size-pot: 14px;
+    --font-size-section-heading: 10px;
+    --gap-small: 3px;
+    --gap-medium: 4px;
+    --gap-large: 6px;
+  }
+
+  .App {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  /* Hide desktop-only elements */
+  .App-header {
+    display: none;
+  }
+
+  .game-info-box {
+    display: none !important;
+  }
+
+  .center-section .game-log-box.top-row-log {
+    display: none;
+  }
+
+  .pot-display {
+    display: none;
+  }
+
+  .deck-visual {
+    display: none;
+  }
+
+  .burned-cards {
+    display: none;
+  }
+
+  /* Show mobile-only elements */
+  .mobile-info-bar {
+    display: flex;
+    padding: 2px 8px;
+    font-size: 9px;
+  }
+
+  .mobile-pot-indicator {
+    display: block;
+    grid-area: mobile-pot;
+    text-align: center;
+    color: #ffd700;
+    font-size: 13px;
+    font-weight: bold;
+    padding: 2px 0;
+    text-shadow: 0 1px 4px rgba(255, 215, 0, 0.5);
+    position: relative;
+  }
+
+  .mobile-pot-indicator .pot-delta {
+    position: relative;
+    display: inline;
+    font-size: 11px;
+    margin-left: 6px;
+    margin-top: 0;
+    animation: potDeltaFloat 1.8s ease-out forwards;
+  }
+
+  .mobile-log-toggle {
+    display: block;
+    position: fixed;
+    top: 4px;
+    right: 4px;
+    z-index: 1000;
+  }
+
+  .mobile-phase {
+    font-size: 10px;
+  }
+
+  .game-container {
+    padding: 2px;
+    gap: 2px;
+  }
+
+  .main-game-layout {
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  /* 3-column landscape grid: AI | Cards/Pot | Human + Actions */
+  .center-section {
+    grid-template-columns: 1fr 2fr 1fr;
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas:
+      "mobile-info mobile-info mobile-info"
+      "top-row     cards-row   human-player"
+      ".           cards-row   actions";
+    gap: 2px;
+    padding: 2px 4px;
+  }
+
+  /* AI player in left column */
+  .top-row-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+    grid-template-columns: 1fr;
+  }
+
+  .top-row-container .ai-player-section {
+    width: 100%;
+    max-width: 100%;
+    min-width: unset;
+    height: auto;
+    max-height: none;
+  }
+
+  /* Cards row in center column */
+  .cards-row-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: auto;
+    min-height: 0;
+    gap: 2px;
+  }
+
+  .community-cards {
+    width: 100%;
+  }
+
+  .community-cards h3 {
+    display: none;
+  }
+
+  .community-cards .cards-row {
+    gap: 3px;
+    min-height: unset;
+  }
+
+  /* Human player in right column */
+  .human-player-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Action buttons compact for landscape */
+  .center-section .action-buttons-section {
+    margin-top: 0;
+    padding: 0 2px;
+  }
+
+  .center-section .action-buttons-section h3 {
+    display: none;
+  }
+
+  .betting-controls {
+    flex-direction: column !important;
+    gap: 3px;
+    flex-wrap: nowrap;
+    align-items: stretch;
+  }
+
+  .bet-button {
+    padding: 4px 6px;
+    font-size: 10px;
+    min-height: 24px;
+    flex: 0 0 auto;
+  }
+
+  .raise-section {
+    flex-direction: row !important;
+    gap: 3px;
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+
+  .raise-input {
+    width: 36px;
+    font-size: 10px;
+    padding: 3px 3px 3px 12px;
+  }
+
+  .deal-button {
+    padding: 6px 16px;
+    font-size: 13px;
+  }
+
+  /* Show game log as floating overlay when toggled (same as portrait mobile) */
+  .center-section .game-log-box.top-row-log.mobile-visible {
+    display: flex;
+    position: fixed;
+    top: 30px;
+    right: 4px;
+    width: 250px;
+    max-height: 250px;
+    z-index: 999;
+    background: rgba(0, 0, 0, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    padding: 6px;
+  }
+
+  /* Showdown overlay compact */
+  .showdown-winner-info .winner-name {
+    font-size: 13px;
+  }
+
+  .showdown-winner-info .winner-amount {
+    font-size: 15px;
   }
 }
 

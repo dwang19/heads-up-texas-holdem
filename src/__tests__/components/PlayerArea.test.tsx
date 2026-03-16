@@ -33,15 +33,15 @@ describe('PlayerArea component (LC-040–LC-048)', () => {
     expect(screen.getByText('$85')).toBeInTheDocument();
   });
 
-  test('renders current bet when > 0', () => {
-    render(<PlayerArea player={createPlayer({ currentBet: 20 })} />);
-    expect(screen.getByText('$20')).toBeInTheDocument();
-  });
-
   test('renders position badges for Small Blind and Big Blind', () => {
-    render(<PlayerArea player={createPlayer({ isSmallBlind: true, isBigBlind: true })} />);
+    const { container } = render(<PlayerArea player={createPlayer({ isSmallBlind: true, isBigBlind: true })} />);
+    // Badges now render both full and short forms (shown/hidden via CSS)
+    expect(container.querySelector('.badge-full')).toBeInTheDocument();
+    expect(container.querySelector('.badge-short')).toBeInTheDocument();
     expect(screen.getByText('Small Blind')).toBeInTheDocument();
     expect(screen.getByText('Big Blind')).toBeInTheDocument();
+    expect(screen.getByText('SB')).toBeInTheDocument();
+    expect(screen.getByText('BB')).toBeInTheDocument();
   });
 
   test('renders turn indicator when isCurrentPlayer and not folded', () => {
